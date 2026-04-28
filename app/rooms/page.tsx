@@ -44,7 +44,7 @@ export default async function RoomsPage({
 
       <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
         <div
-          className="grid max-h-[min(60dvh,26rem)] gap-3 overflow-y-auto overscroll-y-contain pr-0.5 [scrollbar-gutter:stable]"
+          className="grid max-h-[min(60dvh,26rem)] gap-3 overflow-y-auto overscroll-y-contain"
           role="region"
           aria-label="방 목록"
         >
