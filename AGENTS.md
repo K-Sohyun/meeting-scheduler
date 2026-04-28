@@ -2,4 +2,6 @@
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
+**This app:** product behavior, routes, cookies, and DB are documented in **`PROJECT_GUIDE.md`** at the repo root.
 <!-- END:nextjs-agent-rules -->

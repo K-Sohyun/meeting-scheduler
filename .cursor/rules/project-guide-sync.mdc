@@ -1,0 +1,12 @@
+---
+description: 로직 변경 시 저장소 루트 PROJECT_GUIDE.md만 유지보수
+alwaysApply: true
+---
+
+# PROJECT_GUIDE.md 동기화
+
+앱·도메인·API·라우트·쿠키·Supabase 스키마·참여·일정 추천 UI 등 **동작 로직을 바꾼 커밋/작업**에는 **이 저장소 루트의** `PROJECT_GUIDE.md`만 현재 동작에 맞게 갱신한다 (예: §4 참여 UX, §5 `RoomDateResults`, §6 닉네임).
+
+프로젝트 밖 경로(예: Downloads)의 파일은 수정·동기화 대상이 아니다.
+
+문서만 고치고 코드와 불일치하게 두지 않는다.
