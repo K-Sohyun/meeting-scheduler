@@ -152,8 +152,16 @@
 `room_id`, `participant_id`, `date(YYYY-MM-DD)`, `status(best|ok)`  
 `UNIQUE(participant_id, date)`
 
-### SQL 파일
-- `supabase/rooms_creator_claim_token.sql`: `rooms.creator_claim_token` 컬럼 추가
+### 필요한 SQL (직접 실행)
+`rooms.creator_claim_token` 컬럼이 없으면 아래를 Supabase SQL Editor에서 실행합니다.
+
+```sql
+ALTER TABLE rooms
+  ADD COLUMN IF NOT EXISTS creator_claim_token text;
+
+COMMENT ON COLUMN rooms.creator_claim_token IS
+  '방 개설 응답 쿠키와 일치하는 첫 join 만 owner_participant_id 설정(레거시는 NULL)';
+```
 
 ---
 

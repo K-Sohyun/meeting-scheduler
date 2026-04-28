@@ -40,7 +40,8 @@ npm run lint
 ## Supabase
 
 스키마(`creator_claim_token` 포함)와 운영 체크리스트는  
-`PROJECT_GUIDE.md`의 DB/Supabase 섹션을 기준으로 적용해 주세요.
+`PROJECT_GUIDE.md`의 DB/Supabase 섹션을 기준으로 적용해 주세요.  
+(`PROJECT_GUIDE.md`에 SQL Editor에서 바로 실행할 쿼리를 함께 적어두었습니다.)
 
 ## Next.js
 
