@@ -105,6 +105,20 @@ export default async function RoomPage({
             방이 삭제되었거나 접근 권한이 없을 수 있습니다.
           </p>
         </section>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Link
+            href="/"
+            className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-app-primary-soft text-sm font-medium text-app-primary"
+          >
+            홈
+          </Link>
+          <Link
+            href="/rooms"
+            className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-app-card text-sm font-medium text-app-text ring-1 ring-violet-100"
+          >
+            방 리스트
+          </Link>
+        </div>
       </main>
     );
   }
