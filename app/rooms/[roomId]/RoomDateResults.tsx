@@ -68,7 +68,7 @@ export function RoomDateResults({
       {(roomType === "travel" ? showTravelRanges.length === 0 : show.length === 0) ? (
         <p className="mt-3 text-sm text-app-muted">응답이 있는 날짜가 없어요.</p>
       ) : roomType === "travel" && nights != null ? (
-        <ul className="mt-3 grid max-h-[230px] gap-2 overflow-y-auto pr-0.5">
+        <ul className="mt-3 grid max-h-[250px] gap-2 overflow-y-auto pr-0.5">
           {showTravelRanges.map((row) => (
             <li
               key={`${row.startDate}-${row.endDate}`}
@@ -102,7 +102,7 @@ export function RoomDateResults({
           ))}
         </ul>
       ) : (
-        <ul className="mt-3 grid max-h-[230px] gap-2 overflow-y-auto pr-0.5">
+        <ul className="mt-3 grid max-h-[250px] gap-2 overflow-y-auto pr-0.5">
           {show.map((row) => (
             <li
               key={row.date}
