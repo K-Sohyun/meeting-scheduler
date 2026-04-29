@@ -7,6 +7,7 @@ import { getParticipantCookieName } from "@/lib/participant-session";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
 import { buildDateResults } from "@/lib/schedule-results";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { CalendarAccessRetry } from "./CalendarAccessRetry";
 import { JoinForm } from "./JoinForm";
 import { RoomDateResults } from "./RoomDateResults";
 import { RoomPasswordForm } from "./RoomPasswordForm";
@@ -387,12 +388,14 @@ export default async function RoomPage({
               />
             </>
           ) : (
-            <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
-              <h2 className="text-base font-semibold">캘린더 접근 권한이 없습니다.</h2>
-              <p className="mt-2 text-sm text-app-muted">
-                일정 등록 참여 후 캘린더를 열 수 있습니다.
-              </p>
-            </section>
+            <CalendarAccessRetry roomId={room.id} fromJoin={joined === "1"}>
+              <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
+                <h2 className="text-base font-semibold">캘린더 접근 권한이 없습니다.</h2>
+                <p className="mt-2 text-sm text-app-muted">
+                  일정 등록 참여 후 캘린더를 열 수 있습니다.
+                </p>
+              </section>
+            </CalendarAccessRetry>
           )}
         </>
       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { calendarCookieRetryStorageKey } from "./CalendarAccessRetry";
 
 type JoinFormProps = {
   roomId: string;
@@ -28,6 +29,7 @@ export function JoinForm({ roomId }: JoinFormProps) {
         setClientError(null);
         const trimmed = nickname.trim();
         window.localStorage.setItem(nicknameStorageKey(roomId), trimmed);
+        sessionStorage.removeItem(calendarCookieRetryStorageKey(roomId));
 
         const body = new FormData();
         body.set("nickname", trimmed);
@@ -46,18 +48,24 @@ export function JoinForm({ roomId }: JoinFormProps) {
             data = (await res.json()) as { ok: boolean; error?: string; redirect?: string };
           } catch {
             setClientError("응답을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+            setSubmitting(false);
             return;
           }
 
           if (!data.ok || !data.redirect) {
             setClientError(data.error ?? "참여에 실패했습니다. 다시 시도해 주세요.");
+            setSubmitting(false);
             return;
           }
 
-          window.location.assign(data.redirect);
+          // 일부 모바일/WebView는 fetch 응답의 Set-Cookie 커밋 직후 곧바로 이동하면
+          // 다음 문서 요청에 쿠키가 안 실리는 경우가 있어 한 틱 늦춤.
+          const target = data.redirect;
+          setTimeout(() => {
+            window.location.assign(target);
+          }, 50);
         } catch {
           setClientError("네트워크 오류가 났습니다. 연결을 확인해 주세요.");
-        } finally {
           setSubmitting(false);
         }
       }}
