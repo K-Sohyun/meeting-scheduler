@@ -280,7 +280,7 @@ export default async function RoomPage({
 
       {showOwnerManage ? (
         <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
-          <h2 className="text-base font-semibold">모임장 관리</h2>
+          <h2 className="text-base font-semibold">방장 관리</h2>
           {manageError ? (
             <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{manageError}</p>
           ) : null}
@@ -454,7 +454,7 @@ export default async function RoomPage({
                   >
                     <span className="text-sm text-app-primary">{participant.nickname}</span>
                     {room.owner_participant_id === participant.id ? (
-                      <span className="ml-1 text-sm" aria-label="모임장">
+                      <span className="ml-1 text-sm" aria-label="방장">
                         🚩
                       </span>
                     ) : null}

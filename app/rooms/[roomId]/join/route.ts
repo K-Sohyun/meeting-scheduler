@@ -149,15 +149,7 @@ export async function POST(
     const hasStoredToken = Boolean(stored && String(stored).length > 0);
     const creatorCookieMatches = hasStoredToken && claimCookie === stored;
 
-    let shouldSetOwner = false;
-    if (roomForOwner.owner_participant_id == null) {
-      if (!hasStoredToken) {
-        // 레거시(컬럼/값 없음): 첫 유효 join이 모임장
-        shouldSetOwner = true;
-      } else if (creatorCookieMatches) {
-        shouldSetOwner = true;
-      }
-    }
+    const shouldSetOwner = roomForOwner.owner_participant_id == null && creatorCookieMatches;
 
     if (shouldSetOwner) {
       const { error: claimOwnerError } = await supabase

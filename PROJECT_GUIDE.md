@@ -16,7 +16,7 @@
 - `/rooms`에서 방 선택 → `/rooms/[roomId]` 진입 (비밀번호 방은 먼저 잠금 해제)
 - 닉네임 참여 (`POST /rooms/[roomId]/join`) → 참가 쿠키 설정 후 기본 상세 화면(`joined=1` 등)에서 참여자·추천 확인 → `내 캘린더 열기`로 `?view=calendar` 진입
 - `?view=calendar`에서 일정 입력(`best`/`ok`) 후 저장
-- 상세 화면에서 참여자/추천 일정 확인, 모임장은 마감·픽스·삭제 관리 가능
+- 상세 화면에서 참여자/추천 일정 확인, 방장은 마감·픽스·삭제 관리 가능
 
 ### UI 규칙
 - 모바일 우선: `max-w-[480px]`, `min-h-dvh`
@@ -68,7 +68,7 @@
 | `/` | 랜딩 |
 | `/rooms/new` | 방 생성 폼 (`single` / `travel`) |
 | `/rooms` | 방 목록 (`deleted=1`이면 alert 후 쿼리 정리) |
-| `/rooms/[roomId]` | 방 상세 (참여, 참여자, 추천, 모임장 관리, `view=calendar`) |
+| `/rooms/[roomId]` | 방 상세 (참여, 참여자, 추천, 방장 관리, `view=calendar`) |
 | `POST /rooms/new/create` | 방 생성 + `creator_claim_token` 저장 + 개설자 쿠키 발급 |
 | `POST /rooms/[roomId]/join` | 참여 처리 + 참가 쿠키 설정. `Accept: application/json`이면 `200` + `{ ok, redirect }`와 `Set-Cookie` 후 클라이언트가 `redirect`로 이동, 성공 후 기본 상세 화면으로 돌아가 `내 캘린더 열기` 버튼으로 캘린더에 진입 |
 
@@ -79,14 +79,14 @@
 | `joined`, `rejoin` | 참여 완료/재연결 메시지 |
 | `error` | 참여 에러 |
 | `pw=wrong` | 비밀번호 오류 |
-| `managed`, `manageError` | 모임장 액션 결과 |
+| `managed`, `manageError` | 방장 액션 결과 |
 
 ### API 라우트
 | 경로 | 설명 |
 |------|------|
 | `GET/PUT /api/rooms/[roomId]/schedules` | 본인 일정 조회/저장 (`participant` 쿠키 기반) |
 | `POST /api/rooms/[roomId]/unlock` | 방 비밀번호 검증 후 잠금 쿠키 발급 |
-| `POST /api/rooms/[roomId]/manage` | 모임장 액션 (`close`/`fix`/`clear_fix`/`delete_room`) |
+| `POST /api/rooms/[roomId]/manage` | 방장 액션 (`close`/`fix`/`clear_fix`/`delete_room`) |
 | `GET /api/holidays` | 공휴일 프록시 API |
 
 `delete_room` 처리 순서: `schedules` 삭제 → `owner_participant_id` null → `participants` 삭제 → `rooms` 삭제 → `/rooms?deleted=1` 리다이렉트 + 쿠키 제거
@@ -105,13 +105,13 @@
 
 ---
 
-## 6. 모임장(owner) 규칙
+## 6. 방장(owner) 규칙
 
-- 모임장은 닉네임이 아니라 `rooms.owner_participant_id`(participant UUID)로 관리합니다.
+- 방장은 닉네임이 아니라 `rooms.owner_participant_id`(participant UUID)로 관리합니다.
 - **신규 방**: 개설자 쿠키 값과 `creator_claim_token`이 일치하는 참여자가 owner를 선점합니다.
-- **레거시 방**: `creator_claim_token`이 비어 있으면 첫 성공 참여자가 owner가 됩니다.
+- `creator_claim_token`이 비어 있거나 쿠키가 일치하지 않으면 자동 owner 선점은 일어나지 않습니다.
 - 동일 닉네임 재입장은 기존 participant 쿠키가 같은 경우만 허용합니다.
-- 모임장 관리 섹션은 **owner면 항상 노출**됩니다.
+- 방장 관리 섹션은 **owner면 항상 노출**됩니다.
   - 모임 삭제: 언제든 가능
   - 모집 마감: `canClose`(예상 인원 참여/응답 충족)일 때만
   - 일정 픽스/해제: 마감(`is_closed`) 이후만
@@ -137,7 +137,7 @@
   - 참여 화면 최대 3개, 캘린더 화면 최대 6개
   - 여행은 구간(`시작~종료`) 기준으로 표시, 카드 수치는 `선호` + `(가능 총 n/N명)`만 노출
 
-마감 후에는 일정 `PUT`이 403으로 막히고, 모임장만 관리 액션 가능.
+마감 후에는 일정 `PUT`이 403으로 막히고, 방장만 관리 액션 가능.
 
 ---
 
@@ -192,7 +192,7 @@ Supabase에서 두 테이블 Realtime이 켜져 있어야 합니다.
 | `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더 |
 | `app/rooms/[roomId]/RoomDateResults.tsx` | 추천 결과 UI |
 | `app/rooms/[roomId]/DeleteRoomForm.tsx` | 모임 삭제 확인 |
-| `app/api/rooms/[roomId]/manage/route.ts` | 모임장 액션 API |
+| `app/api/rooms/[roomId]/manage/route.ts` | 방장 액션 API |
 | `app/api/rooms/[roomId]/schedules/route.ts` | 일정 API |
 | `app/api/rooms/[roomId]/unlock/route.ts` | 잠금 해제 API |
 | `lib/room-creator.ts` / `participant-session.ts` / `room-unlock.ts` | 쿠키 키 유틸 |
