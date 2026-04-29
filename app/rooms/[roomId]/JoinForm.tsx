@@ -17,14 +17,49 @@ export function JoinForm({ roomId }: JoinFormProps) {
     }
     return window.localStorage.getItem(nicknameStorageKey(roomId)) ?? "";
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   return (
     <form
       className="grid gap-3"
-      action={`/rooms/${roomId}/join`}
-      method="post"
-      onSubmit={() => {
-        window.localStorage.setItem(nicknameStorageKey(roomId), nickname.trim());
+      onSubmit={async (event) => {
+        event.preventDefault();
+        setClientError(null);
+        const trimmed = nickname.trim();
+        window.localStorage.setItem(nicknameStorageKey(roomId), trimmed);
+
+        const body = new FormData();
+        body.set("nickname", trimmed);
+
+        setSubmitting(true);
+        try {
+          const res = await fetch(`/rooms/${roomId}/join`, {
+            method: "POST",
+            body,
+            credentials: "include",
+            headers: { Accept: "application/json" },
+          });
+
+          let data: { ok: boolean; error?: string; redirect?: string };
+          try {
+            data = (await res.json()) as { ok: boolean; error?: string; redirect?: string };
+          } catch {
+            setClientError("응답을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+            return;
+          }
+
+          if (!data.ok || !data.redirect) {
+            setClientError(data.error ?? "참여에 실패했습니다. 다시 시도해 주세요.");
+            return;
+          }
+
+          window.location.assign(data.redirect);
+        } catch {
+          setClientError("네트워크 오류가 났습니다. 연결을 확인해 주세요.");
+        } finally {
+          setSubmitting(false);
+        }
       }}
     >
       <label className="grid gap-1">
@@ -38,15 +73,21 @@ export function JoinForm({ roomId }: JoinFormProps) {
           minLength={2}
           maxLength={20}
           required
-          className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300"
+          disabled={submitting}
+          className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300 disabled:opacity-60"
         />
       </label>
 
+      {clientError ? (
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{clientError}</p>
+      ) : null}
+
       <button
         type="submit"
-        className="h-11 rounded-xl bg-app-primary text-sm font-semibold text-white"
+        disabled={submitting}
+        className="h-11 rounded-xl bg-app-primary text-sm font-semibold text-white disabled:opacity-60"
       >
-        참여하기
+        {submitting ? "처리 중…" : "참여하기"}
       </button>
     </form>
   );

@@ -68,7 +68,7 @@
 | `/rooms` | 방 목록 (`deleted=1`이면 alert 후 쿼리 정리) |
 | `/rooms/[roomId]` | 방 상세 (참여, 참여자, 추천, 모임장 관리, `view=calendar`) |
 | `POST /rooms/new/create` | 방 생성 + `creator_claim_token` 저장 + 개설자 쿠키 발급 |
-| `POST /rooms/[roomId]/join` | 참여 처리 + 참가 쿠키 설정 |
+| `POST /rooms/[roomId]/join` | 참여 처리 + 참가 쿠키 설정. `Accept: application/json`이면 `200` + `{ ok, redirect }`와 `Set-Cookie` 후 클라이언트가 `redirect`로 이동(모바일 인앱 등에서 쿠키 유실 완화). 해당 헤더가 없으면 기존처럼 `303` 리다이렉트 |
 
 ### `/rooms/[roomId]` 쿼리
 | 키 | 설명 |

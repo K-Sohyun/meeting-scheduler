@@ -14,12 +14,42 @@ const joinSchema = z.object({
     .refine((value) => value.length <= 20, { message: "닉네임은 20자 이하로 입력해 주세요." }),
 });
 
+const cookieBase = {
+  path: "/",
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+};
+
+function wantsJoinJson(request: NextRequest) {
+  const accept = request.headers.get("accept") ?? "";
+  return accept.includes("application/json");
+}
+
 function buildRedirectUrl(request: Request, roomId: string, params: Record<string, string>) {
   const url = new URL(`/rooms/${roomId}`, request.url);
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, value);
   });
   return url;
+}
+
+function setParticipantSessionCookies(
+  response: NextResponse,
+  roomId: string,
+  participantId: string,
+  creatorCookieMatches: boolean,
+) {
+  response.cookies.set(getParticipantCookieName(roomId), participantId, {
+    ...cookieBase,
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  if (creatorCookieMatches) {
+    response.cookies.set(getRoomCreatorCookieName(roomId), "", {
+      ...cookieBase,
+      maxAge: 0,
+    });
+  }
 }
 
 export async function POST(
@@ -29,6 +59,7 @@ export async function POST(
   const { roomId } = await context.params;
   const formData = await request.formData();
   const participantCookie = request.cookies.get(getParticipantCookieName(roomId))?.value;
+  const asJson = wantsJoinJson(request);
 
   const parseResult = joinSchema.safeParse({
     roomId,
@@ -37,6 +68,9 @@ export async function POST(
 
   if (!parseResult.success) {
     const message = parseResult.error.issues[0]?.message ?? "닉네임을 확인해 주세요.";
+    if (asJson) {
+      return NextResponse.json({ ok: false as const, error: message }, { status: 400 });
+    }
     return NextResponse.redirect(buildRedirectUrl(request, roomId, { error: message }), 303);
   }
 
@@ -59,9 +93,13 @@ export async function POST(
     if (existing) {
       // 동일 닉 재진입은 기존 쿠키 보유자만 허용(타 브라우저의 닉 탈취 방지)
       if (participantCookie !== existing.id) {
+        const dupMsg = "이미 사용 중인 닉네임입니다. 다른 닉네임을 사용해 주세요.";
+        if (asJson) {
+          return NextResponse.json({ ok: false as const, error: dupMsg }, { status: 409 });
+        }
         return NextResponse.redirect(
           buildRedirectUrl(request, roomId, {
-            error: "이미 사용 중인 닉네임입니다. 다른 닉네임을 사용해 주세요.",
+            error: dupMsg,
           }),
           303,
         );
@@ -132,36 +170,33 @@ export async function POST(
       }
     }
 
-    const response = NextResponse.redirect(
-      buildRedirectUrl(request, roomId, {
-        joined: "1",
-        rejoin: rejoined ? "1" : "0",
-        view: "calendar",
-      }),
-      303,
-    );
-    // path는 `/` 이어야 `/api/rooms/...` 요청에도 쿠키가 전달됨 (`/rooms/...`만 쓰면 API에 미전송)
-    response.cookies.set(getParticipantCookieName(roomId), participantId, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
+    const nextUrl = buildRedirectUrl(request, roomId, {
+      joined: "1",
+      rejoin: rejoined ? "1" : "0",
+      view: "calendar",
     });
-    if (creatorCookieMatches) {
-      response.cookies.set(getRoomCreatorCookieName(roomId), "", {
-        path: "/",
-        maxAge: 0,
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+    const redirectPath = `${nextUrl.pathname}${nextUrl.search}`;
+
+    if (asJson) {
+      const res = NextResponse.json({
+        ok: true as const,
+        redirect: redirectPath,
       });
+      setParticipantSessionCookies(res, roomId, participantId, creatorCookieMatches);
+      return res;
     }
+
+    const response = NextResponse.redirect(nextUrl, 303);
+    setParticipantSessionCookies(response, roomId, participantId, creatorCookieMatches);
     return response;
   } catch {
+    const fallback = "참여 처리 중 오류가 발생했어요.";
+    if (asJson) {
+      return NextResponse.json({ ok: false as const, error: fallback }, { status: 500 });
+    }
     return NextResponse.redirect(
       buildRedirectUrl(request, roomId, {
-        error: "참여 처리 중 오류가 발생했어요.",
+        error: fallback,
       }),
       303,
     );
