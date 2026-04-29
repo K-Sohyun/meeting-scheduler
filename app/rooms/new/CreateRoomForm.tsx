@@ -24,7 +24,7 @@ export function CreateRoomForm({ roomType, buttonLabel }: CreateRoomFormProps) {
       <input type="hidden" name="type" value={roomType} />
       <div className="grid gap-4">
         <label className="grid gap-1">
-          <span className="text-sm font-medium">방 이름</span>
+          <span className="text-sm font-semibold">방 이름</span>
           <input
             name="name"
             type="text"
@@ -35,7 +35,7 @@ export function CreateRoomForm({ roomType, buttonLabel }: CreateRoomFormProps) {
         </label>
 
         <label className="grid gap-1">
-          <span className="text-sm font-medium">시작일</span>
+          <span className="text-sm font-semibold">선택 범위 시작일</span>
           <input
             name="dateRangeStart"
             type="date"
@@ -45,7 +45,7 @@ export function CreateRoomForm({ roomType, buttonLabel }: CreateRoomFormProps) {
         </label>
 
         <label className="grid gap-1">
-          <span className="text-sm font-medium">종료일</span>
+          <span className="text-sm font-semibold">선택 범위 종료일</span>
           <input
             name="dateRangeEnd"
             type="date"
@@ -55,7 +55,7 @@ export function CreateRoomForm({ roomType, buttonLabel }: CreateRoomFormProps) {
         </label>
 
         <label className="grid gap-1">
-          <span className="text-sm font-medium">예상 인원수</span>
+          <span className="text-sm font-semibold">예상 인원수</span>
           <input
             name="expectedParticipantCount"
             type="number"
@@ -68,7 +68,7 @@ export function CreateRoomForm({ roomType, buttonLabel }: CreateRoomFormProps) {
         </label>
 
         <label className="grid gap-1">
-          <span className="text-sm font-medium">방 비밀번호 (선택)</span>
+          <span className="text-sm font-semibold">방 비밀번호 (선택)</span>
           <input
             name="roomPassword"
             type="password"
@@ -81,7 +81,7 @@ export function CreateRoomForm({ roomType, buttonLabel }: CreateRoomFormProps) {
 
         {roomType === "travel" ? (
           <label className="grid gap-1">
-            <span className="text-sm font-medium">N박</span>
+            <span className="text-sm font-semibold">N박</span>
             <input
               name="nights"
               type="number"
