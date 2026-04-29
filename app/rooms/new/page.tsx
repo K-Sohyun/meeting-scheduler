@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CreateRoomForm } from "./CreateRoomForm";
 
 type RoomType = "single" | "travel";
 
@@ -45,88 +46,7 @@ export default async function NewRoomPage({
             {error}
           </p>
         ) : null}
-        <form className="grid gap-4" method="post" action="/rooms/new/create">
-          <input type="hidden" name="type" value={roomType} />
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">방 이름</span>
-            <input
-              name="name"
-              type="text"
-              placeholder="예: 맛집 도장 깨기 원정대"
-              required
-              className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300"
-            />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">시작일</span>
-            <input
-              name="dateRangeStart"
-              type="date"
-              required
-              className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300"
-            />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">종료일</span>
-            <input
-              name="dateRangeEnd"
-              type="date"
-              required
-              className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300"
-            />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">
-              예상 인원수
-            </span>
-            <input
-              name="expectedParticipantCount"
-              type="number"
-              min={1}
-              max={200}
-              defaultValue={5}
-              required
-              className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300"
-            />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-sm font-medium">방 비밀번호 (선택)</span>
-            <input
-              name="roomPassword"
-              type="password"
-              placeholder="미입력 시 공개 링크로 참여"
-              minLength={4}
-              maxLength={30}
-              className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300"
-            />
-          </label>
-
-          {roomType === "travel" ? (
-            <label className="grid gap-1">
-              <span className="text-sm font-medium">N박</span>
-              <input
-                name="nights"
-                type="number"
-                min={1}
-                max={30}
-                defaultValue={2}
-                required
-                className="h-11 rounded-xl border border-violet-100 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-300"
-              />
-            </label>
-          ) : null}
-
-          <button
-            type="submit"
-            className="mt-1 h-11 rounded-xl bg-app-primary text-sm font-semibold text-white"
-          >
-            {content.buttonLabel}
-          </button>
-        </form>
+        <CreateRoomForm roomType={roomType} buttonLabel={content.buttonLabel} />
       </section>
 
       <Link

@@ -86,9 +86,19 @@ export function JoinForm({ roomId }: JoinFormProps) {
       <button
         type="submit"
         disabled={submitting}
-        className="h-11 rounded-xl bg-app-primary text-sm font-semibold text-white disabled:opacity-60"
+        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-app-primary text-sm font-semibold text-white disabled:opacity-60"
       >
-        {submitting ? "처리 중…" : "참여하기"}
+        {submitting ? (
+          <>
+            <span
+              className="h-4 w-4 animate-spin rounded-full border-2 border-violet-100 border-t-white"
+              aria-hidden
+            />
+            처리 중...
+          </>
+        ) : (
+          "참여하기"
+        )}
       </button>
     </form>
   );
