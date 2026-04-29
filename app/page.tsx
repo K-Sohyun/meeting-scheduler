@@ -5,7 +5,7 @@ export default function Home() {
     <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col px-5 pb-6 pt-8">
       <header className="rounded-2xl bg-app-card p-5 shadow-sm">
         <p className="text-sm font-medium text-app-primary">모여라</p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight break-keep">
         약속과 여행 일정을 빠르게 맞춰보세요!
         </h1>
         <p className="mt-3 text-sm leading-6 text-app-muted">
@@ -37,7 +37,7 @@ export default function Home() {
       </section>
 
       <footer className="mt-auto pt-6 text-center text-xs text-app-muted">
-        모바일 우선 레이아웃 (max-width: 480px)
+        Copyright &copy; 2026. Sohyun. All rights reserved.
       </footer>
     </main>
   );

@@ -14,7 +14,7 @@
 ### 사용자 흐름
 - 방 생성 (`/rooms/new` → `POST /rooms/new/create`) 후 `/rooms?created=...` 이동, 이때 개설자 쿠키 발급
 - `/rooms`에서 방 선택 → `/rooms/[roomId]` 진입 (비밀번호 방은 먼저 잠금 해제)
-- 닉네임 참여 (`POST /rooms/[roomId]/join`) → 참가 쿠키 설정
+- 닉네임 참여 (`POST /rooms/[roomId]/join`) → 참가 쿠키 설정 후 기본 상세 화면(`joined=1` 등)에서 참여자·추천 확인 → `내 캘린더 열기`로 `?view=calendar` 진입
 - `?view=calendar`에서 일정 입력(`best`/`ok`) 후 저장
 - 상세 화면에서 참여자/추천 일정 확인, 모임장은 마감·픽스·삭제 관리 가능
 
@@ -66,9 +66,9 @@
 | `/` | 랜딩 |
 | `/rooms/new` | 방 생성 폼 (`single` / `travel`) |
 | `/rooms` | 방 목록 (`deleted=1`이면 alert 후 쿼리 정리) |
-| `/rooms/[roomId]` | 방 상세 (참여, 참여자, 추천, 모임장 관리, `view=calendar`). `view=calendar` + `joined=1`인데 참가 쿠키가 아직 없으면 `CalendarAccessRetry`가 `sessionStorage`로 1회만 `router.refresh()` (인앱 브라우저 쿠키 지연 완화) |
+| `/rooms/[roomId]` | 방 상세 (참여, 참여자, 추천, 모임장 관리, `view=calendar`) |
 | `POST /rooms/new/create` | 방 생성 + `creator_claim_token` 저장 + 개설자 쿠키 발급 |
-| `POST /rooms/[roomId]/join` | 참여 처리 + 참가 쿠키 설정. `Accept: application/json`이면 `200` + `{ ok, redirect }`와 `Set-Cookie` 후 클라이언트가 `redirect`로 이동(모바일 인앱 등에서 쿠키 유실 완화). 해당 헤더가 없으면 기존처럼 `303` 리다이렉트 |
+| `POST /rooms/[roomId]/join` | 참여 처리 + 참가 쿠키 설정. `Accept: application/json`이면 `200` + `{ ok, redirect }`와 `Set-Cookie` 후 클라이언트가 `redirect`로 이동, 성공 후 기본 상세 화면으로 돌아가 `내 캘린더 열기` 버튼으로 캘린더에 진입 |
 
 ### `/rooms/[roomId]` 쿼리
 | 키 | 설명 |
@@ -187,7 +187,6 @@ Supabase에서 두 테이블 Realtime이 켜져 있어야 합니다.
 | `app/rooms/[roomId]/join/route.ts` | 참여 처리 + owner 할당 규칙 |
 | `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/삭제 alert) |
 | `app/rooms/[roomId]/page.tsx` | 방 상세 조합 |
-| `app/rooms/[roomId]/CalendarAccessRetry.tsx` | 캘린더 진입 직후 참가 쿠키 1회 재검증 |
 | `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더 |
 | `app/rooms/[roomId]/RoomDateResults.tsx` | 추천 결과 UI |
 | `app/rooms/[roomId]/DeleteRoomForm.tsx` | 모임 삭제 확인 |

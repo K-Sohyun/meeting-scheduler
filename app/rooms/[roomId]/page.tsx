@@ -7,7 +7,6 @@ import { getParticipantCookieName } from "@/lib/participant-session";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
 import { buildDateResults } from "@/lib/schedule-results";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CalendarAccessRetry } from "./CalendarAccessRetry";
 import { JoinForm } from "./JoinForm";
 import { RoomDateResults } from "./RoomDateResults";
 import { RoomPasswordForm } from "./RoomPasswordForm";
@@ -388,14 +387,12 @@ export default async function RoomPage({
               />
             </>
           ) : (
-            <CalendarAccessRetry roomId={room.id} fromJoin={joined === "1"}>
-              <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
-                <h2 className="text-base font-semibold">캘린더 접근 권한이 없습니다.</h2>
-                <p className="mt-2 text-sm text-app-muted">
-                  일정 등록 참여 후 캘린더를 열 수 있습니다.
-                </p>
-              </section>
-            </CalendarAccessRetry>
+            <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
+              <h2 className="text-base font-semibold">캘린더 접근 권한이 없습니다.</h2>
+              <p className="mt-2 text-sm text-app-muted">
+                일정 등록 참여 후 캘린더를 열 수 있습니다.
+              </p>
+            </section>
           )}
         </>
       ) : (
@@ -405,13 +402,14 @@ export default async function RoomPage({
               <h2 className="text-base font-semibold">참여 중</h2>
               <p className="mt-2 text-sm leading-6 text-app-muted">
                 <span className="font-medium text-app-text">{myParticipant.nickname}</span>님으로
-                참여 중이에요. <br />일정을 바꾸려면 내 캘린더 열기를 클릭해 주세요.
+                참여 중이에요. <br />
+                일정 입력/수정은 아래에서 내 캘린더 열기를 눌러 진행해 주세요.
               </p>
               {joined === "1" ? (
                 <p className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">
                   {rejoin === "1"
-                    ? "이미 이 방에 등록된 닉네임이에요. 같은 프로필로 캘린더에 연결했어요."
-                    : "참여가 완료되었습니다. 캘린더에서 일정을 입력해 주세요."}
+                    ? "이미 이 방에 등록된 닉네임이에요."
+                    : "참여가 완료되었습니다."}
                 </p>
               ) : null}
               <Link
@@ -433,8 +431,8 @@ export default async function RoomPage({
               {joined === "1" ? (
                 <p className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">
                   {rejoin === "1"
-                    ? "이미 이 방에 등록된 닉네임이에요. 같은 프로필로 캘린더에 연결했어요."
-                    : "참여가 완료되었습니다. 아래에서 캘린더로 이동해 주세요."}
+                    ? "이미 이 방에 등록된 닉네임이에요."
+                    : "참여가 완료되었습니다."}
                 </p>
               ) : null}
               <div className="mt-4">

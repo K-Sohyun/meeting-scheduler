@@ -173,7 +173,6 @@ export async function POST(
     const nextUrl = buildRedirectUrl(request, roomId, {
       joined: "1",
       rejoin: rejoined ? "1" : "0",
-      view: "calendar",
     });
     const redirectPath = `${nextUrl.pathname}${nextUrl.search}`;
 
