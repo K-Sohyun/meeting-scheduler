@@ -136,7 +136,7 @@ export async function POST(
     .update({ owner_participant_id: null })
     .eq("id", roomId);
   if (ownerClearError) {
-    return buildRedirect(request, roomId, { manageError: "모임을 삭제할 수 없습니다." });
+    return buildRedirect(request, roomId, { manageError: "방을 삭제할 수 없습니다." });
   }
 
   const { error: delParticipantsError } = await supabase
@@ -149,7 +149,7 @@ export async function POST(
 
   const { error: delRoomError } = await supabase.from("rooms").delete().eq("id", roomId);
   if (delRoomError) {
-    return buildRedirect(request, roomId, { manageError: "모임을 삭제하지 못했습니다." });
+    return buildRedirect(request, roomId, { manageError: "방을 삭제하지 못했습니다." });
   }
 
   const toRooms = new URL("/rooms?deleted=1", request.url);

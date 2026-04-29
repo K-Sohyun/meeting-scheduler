@@ -19,6 +19,8 @@ import { ko } from "date-fns/locale";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { InlineMessage } from "@/components/ui/InlineMessage";
+import { ToastPopup } from "@/components/ui/ToastPopup";
 
 type Holiday = {
   date: string;
@@ -35,6 +37,7 @@ type RoomInfo = {
 
 type ScheduleStatus = "best" | "ok";
 type ScheduleMap = Record<string, ScheduleStatus>;
+type MessageTone = "success" | "error" | "info";
 
 type ScheduleCalendarProps = {
   room: RoomInfo;
@@ -147,6 +150,8 @@ export function ScheduleCalendar({
   const [schedules, setSchedules] = useState<ScheduleMap>({});
   const [savedSchedules, setSavedSchedules] = useState<ScheduleMap>({});
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<MessageTone>("info");
+  const [toastMessage, setToastMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [loadState, setLoadState] = useState<"loading" | "ok" | "unauthorized" | "error">(
     "loading",
@@ -162,10 +167,28 @@ export function ScheduleCalendar({
   const roomStart = parseISO(room.dateRangeStart);
   const roomEnd = parseISO(room.dateRangeEnd);
 
+  function clearMessage() {
+    setMessage("");
+    setMessageTone("info");
+  }
+
+  function showMessage(text: string, tone: MessageTone) {
+    setMessage(text);
+    setMessageTone(tone);
+  }
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setToastMessage(""), 2500);
+    return () => window.clearTimeout(timeoutId);
+  }, [toastMessage]);
+
   useEffect(() => {
     async function fetchSchedules() {
       setLoadState("loading");
-      setMessage("");
+      clearMessage();
       const response = await fetch(`/api/rooms/${room.id}/schedules`, {
         credentials: "include",
       });
@@ -176,7 +199,7 @@ export function ScheduleCalendar({
 
       if (response.status === 401) {
         setLoadState("unauthorized");
-        setMessage(payload.error ?? "참여 세션이 없습니다. 닉네임으로 다시 참여해 주세요.");
+        showMessage(payload.error ?? "참여 세션이 없습니다. 닉네임으로 다시 참여해 주세요.", "error");
         setSchedules({});
         setSavedSchedules({});
         return;
@@ -184,7 +207,7 @@ export function ScheduleCalendar({
 
       if (!response.ok) {
         setLoadState("error");
-        setMessage(payload.error ?? "일정 데이터를 불러오지 못했습니다.");
+        showMessage(payload.error ?? "일정 데이터를 불러오지 못했습니다.", "error");
         setSchedules({});
         setSavedSchedules({});
         return;
@@ -207,7 +230,7 @@ export function ScheduleCalendar({
       return;
     }
     setIsSaving(true);
-    setMessage("");
+    clearMessage();
     const entries = Object.entries(nextSchedules).map(([date, status]) => ({ date, status }));
     const response = await fetch(`/api/rooms/${room.id}/schedules`, {
       method: "PUT",
@@ -222,20 +245,21 @@ export function ScheduleCalendar({
     if (response.status === 401) {
       setLoadState("unauthorized");
       const data = (await response.json().catch(() => ({}))) as { error?: string };
-      setMessage(data.error ?? "참여 세션이 없습니다. 닉네임으로 다시 참여해 주세요.");
+      showMessage(data.error ?? "참여 세션이 없습니다. 닉네임으로 다시 참여해 주세요.", "error");
       return;
     }
     if (!response.ok) {
       const data = (await response.json().catch(() => ({ error: "저장 실패" }))) as {
         error?: string;
       };
-      setMessage(data.error ?? "일정 저장에 실패했습니다.");
+      showMessage(data.error ?? "일정 저장에 실패했습니다.", "error");
       return;
     }
 
     setSchedules(nextSchedules);
     setSavedSchedules(nextSchedules);
-    setMessage("일정이 저장되었습니다.");
+    showMessage("일정이 저장되었습니다.", "success");
+    setToastMessage("일정이 저장되었습니다.");
     router.refresh();
   }
 
@@ -249,14 +273,14 @@ export function ScheduleCalendar({
       const start = parseISO(date);
       const end = addDays(start, nights);
       if (isAfter(end, roomEnd)) {
-        setMessage(`여행 모임은 ${nights + 1}일 연속 선택이 가능한 시작일만 선택할 수 있어요.`);
+        showMessage(`여행 모임은 ${nights + 1}일 연속 선택이 가능한 시작일만 선택할 수 있어요.`, "error");
         return;
       }
 
       if (schedules[date] && isTravelChunkStart(schedules, date)) {
         const removed = removeTravelChunkContaining(schedules, date);
         setSchedules(removed);
-        setMessage(`선택한 시작일의 여행 일정 ${nights + 1}일 구간을 해제했어요.`);
+        showMessage(`선택한 시작일의 여행 일정 ${nights + 1}일 구간을 해제했어요.`, "info");
         return;
       }
 
@@ -266,11 +290,11 @@ export function ScheduleCalendar({
       const cleaned = removeTravelChunksOverlappingRange(baseSchedules, date, nights);
       const merged = mergeTravelSelection(cleaned, date, nights);
       if (merged.added === 0) {
-        setMessage("이미 포함된 여행 일정이에요.");
+        showMessage("이미 포함된 여행 일정이에요.", "info");
         return;
       }
       setSchedules(merged.next);
-      setMessage(`여행 일정 ${nights + 1}일 구간을 반영했어요. 저장 버튼을 눌러 주세요.`);
+      showMessage(`여행 일정 ${nights + 1}일 구간을 반영했어요. 저장 버튼을 눌러 주세요.`, "info");
       return;
     }
 
@@ -282,7 +306,7 @@ export function ScheduleCalendar({
       next[date] = nextStatus;
     }
     setSchedules(next);
-    setMessage("선택 내용을 확인한 뒤 저장 버튼을 눌러 주세요.");
+    showMessage("선택 내용을 확인한 뒤 저장 버튼을 눌러 주세요.", "info");
   }
 
   const hasUnsavedChanges = useMemo(
@@ -300,10 +324,10 @@ export function ScheduleCalendar({
 
   if (loadState === "unauthorized") {
     return (
-      <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-        <h2 className="text-base font-semibold text-amber-900">참여가 필요해요</h2>
-        <p className="mt-2 text-sm text-amber-900/90">{message}</p>
-        <p className="mt-1 text-xs text-amber-800/80">
+      <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
+        <h2 className="text-base font-semibold text-red-800">참여가 필요해요</h2>
+        <p className="mt-2 text-sm text-red-800/90">{message}</p>
+        <p className="mt-1 text-xs text-red-700/80">
           (이전에 쿠키 설정 방식이 달랐다면) 아래에서 다시 참여하면 캘린더가 열립니다.
         </p>
         <Link
@@ -340,20 +364,17 @@ export function ScheduleCalendar({
         <p className="mt-3 text-sm text-app-muted">일정을 불러오는 중...</p>
       ) : null}
       {loadState === "error" && message ? (
-        <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+        <InlineMessage tone="error" className="mt-3">
+          {message}
+        </InlineMessage>
       ) : null}
       {loadState === "ok" && message ? (
-        <p
-          className={
-            message.includes("실패") ||
-            message.includes("세션") ||
-            message.includes("불러오지")
-              ? "mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900"
-              : "mt-3 rounded-xl bg-violet-50 px-3 py-2 text-sm text-violet-700"
-          }
+        <InlineMessage
+          tone={messageTone === "success" ? "success" : messageTone === "error" ? "error" : "info"}
+          className="mt-3"
         >
           {message}
-        </p>
+        </InlineMessage>
       ) : null}
 
       <div className="mt-4 rounded-xl border border-violet-100 p-3">
@@ -395,7 +416,7 @@ export function ScheduleCalendar({
               statusClass = "bg-amber-100 text-amber-900";
             }
             if (status === "best") {
-              statusClass = "bg-violet-500 text-white";
+              statusClass = "bg-red-200 text-amber-800";
             }
 
             return (
@@ -439,13 +460,16 @@ export function ScheduleCalendar({
           disabled={readOnly || !hasUnsavedChanges || isSaving}
           onClick={() => {
             setSchedules(savedSchedules);
-            setMessage("마지막 저장 상태로 되돌렸습니다.");
+            showMessage("마지막 저장 상태로 되돌렸습니다.", "info");
           }}
           className="h-10 w-full rounded-xl bg-app-primary-soft px-4 text-sm font-medium text-app-primary disabled:opacity-50"
         >
           변경 취소
         </button>
       </div>
+      {toastMessage ? (
+        <ToastPopup message={toastMessage} />
+      ) : null}
     </section>
   );
 }

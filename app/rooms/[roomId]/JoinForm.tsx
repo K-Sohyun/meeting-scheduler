@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 
 type JoinFormProps = {
   roomId: string;
@@ -79,9 +80,7 @@ export function JoinForm({ roomId }: JoinFormProps) {
         />
       </label>
 
-      {clientError ? (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{clientError}</p>
-      ) : null}
+      {clientError ? <InlineMessage tone="error">{clientError}</InlineMessage> : null}
 
       <button
         type="submit"

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { DeletedAlert } from "./DeletedAlert";
+import { RoomsActionToast } from "./RoomsActionToast";
 
 export default async function RoomsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ deleted?: string }>;
+  searchParams: Promise<{ deleted?: string; created?: string }>;
 }) {
-  const { deleted } = await searchParams;
+  const { deleted, created } = await searchParams;
   const supabase = createSupabaseServerClient();
   const { data: rooms } = await supabase
     .from("rooms")
@@ -40,7 +40,7 @@ export default async function RoomsPage({
           방을 클릭하면 닉네임 참여 화면으로 이동합니다.
         </p>
       </header>
-      <DeletedAlert deleted={deleted === "1"} />
+      <RoomsActionToast deleted={deleted === "1"} createdRoomId={created} />
 
       <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
         <div
@@ -77,7 +77,7 @@ export default async function RoomsPage({
                   <p className="mt-1 text-xs text-app-muted">
                     {room.date_range_start} ~ {room.date_range_end}
                   </p>
-                  {isCompleted ? <p className="mt-1 text-xs text-zinc-600">일정이 확정된 모임</p> : null}
+                  {isCompleted ? <p className="mt-1 text-xs text-zinc-600">일정이 확정된 방</p> : null}
                 </Link>
               );
             })

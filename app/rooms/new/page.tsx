@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { CreateRoomForm } from "./CreateRoomForm";
 
 type RoomType = "single" | "travel";
@@ -42,9 +43,9 @@ export default async function NewRoomPage({
 
       <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
         {error ? (
-          <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <InlineMessage tone="error" className="mb-4">
             {error}
-          </p>
+          </InlineMessage>
         ) : null}
         <CreateRoomForm roomType={roomType} buttonLabel={content.buttonLabel} />
       </section>

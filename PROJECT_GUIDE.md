@@ -23,11 +23,14 @@
 - 상단 내비/보조 액션: pill 스타일(`홈` / `방 리스트`)
 - 화면 전환 지연 시 `app/loading.tsx` 공통 로딩 카드/스피너 노출
 - 주요 제출 버튼(방 생성/참여)은 제출 중 비활성 + 인라인 스피너/진행 문구 노출
+- 캘린더 저장 성공 안내는 초록 배너(`일정이 저장되었습니다`)와 짧은 하단 토스트로 표시
+- 전역 메시지 톤 규칙: 성공(초록), 안내/정보(보라), 에러(빨강)
+- 완료형 액션(방 생성/방 삭제/캘린더 저장)은 하단 토스트로 성공 피드백 노출
 - 방 목록:
   - 비밀번호 방이면 유형 옆에 `🔒`
   - 목록 영역 스크롤: `max-h-[min(60dvh,26rem)] + overflow-y-auto`
-  - `is_closed && fixed_start_date`면 회색 카드 + `완료된 모임` 표시
-- 모임 삭제 완료 후 `/rooms?deleted=1`로 들어오면 `alert` 1회 노출 후 쿼리 제거
+  - `is_closed && fixed_start_date`면 회색 카드 + `일정이 확정된 방` 표시
+- 방 삭제 완료 후 `/rooms?deleted=1`로 들어오면 하단 토스트 1회 노출 후 쿼리 제거
 
 ---
 
@@ -67,7 +70,7 @@
 |------|------|
 | `/` | 랜딩 |
 | `/rooms/new` | 방 생성 폼 (`single` / `travel`) |
-| `/rooms` | 방 목록 (`deleted=1`이면 alert 후 쿼리 정리) |
+| `/rooms` | 방 목록 (`created`, `deleted=1` 완료 토스트 1회 노출 후 쿼리 정리) |
 | `/rooms/[roomId]` | 방 상세 (참여, 참여자, 추천, 방장 관리, `view=calendar`) |
 | `POST /rooms/new/create` | 방 생성 + `creator_claim_token` 저장 + 개설자 쿠키 발급 |
 | `POST /rooms/[roomId]/join` | 참여 처리 + 참가 쿠키 설정. `Accept: application/json`이면 `200` + `{ ok, redirect }`와 `Set-Cookie` 후 클라이언트가 `redirect`로 이동, 성공 후 기본 상세 화면으로 돌아가 `내 캘린더 열기` 버튼으로 캘린더에 진입 |
@@ -112,7 +115,7 @@
 - `creator_claim_token`이 비어 있거나 쿠키가 일치하지 않으면 자동 owner 선점은 일어나지 않습니다.
 - 동일 닉네임 재입장은 기존 participant 쿠키가 같은 경우만 허용합니다.
 - 방장 관리 섹션은 **owner면 항상 노출**됩니다.
-  - 모임 삭제: 언제든 가능
+  - 방 삭제: 언제든 가능
   - 모집 마감: `canClose`(예상 인원 참여/응답 충족)일 때만
   - 일정 픽스/해제: 마감(`is_closed`) 이후만
 
@@ -191,14 +194,17 @@ Supabase에서 두 테이블 Realtime이 켜져 있어야 합니다.
 | `app/rooms/new/create/route.ts` | 방 생성 + 개설자 토큰/쿠키 |
 | `app/rooms/new/CreateRoomForm.tsx` | 방 생성 폼(제출 중 스피너) |
 | `app/rooms/[roomId]/join/route.ts` | 참여 처리 + owner 할당 규칙 |
-| `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/삭제 alert) |
+| `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/생성·삭제 토스트) |
+| `app/rooms/RoomsActionToast.tsx` | `/rooms` 생성·삭제 완료 토스트 + 쿼리 정리 |
 | `app/rooms/[roomId]/page.tsx` | 방 상세 조합 |
 | `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더 |
 | `app/rooms/[roomId]/RoomDateResults.tsx` | 추천 결과 UI |
-| `app/rooms/[roomId]/DeleteRoomForm.tsx` | 모임 삭제 확인 |
+| `app/rooms/[roomId]/DeleteRoomForm.tsx` | 방 삭제 확인 |
 | `app/api/rooms/[roomId]/manage/route.ts` | 방장 액션 API |
 | `app/api/rooms/[roomId]/schedules/route.ts` | 일정 API |
 | `app/api/rooms/[roomId]/unlock/route.ts` | 잠금 해제 API |
+| `components/ui/InlineMessage.tsx` | 성공/안내/에러 공통 배너 |
+| `components/ui/ToastPopup.tsx` | 완료 피드백 공통 토스트 |
 | `lib/room-creator.ts` / `participant-session.ts` / `room-unlock.ts` | 쿠키 키 유틸 |
 | `lib/schedule-validate.ts` / `schedule-results.ts` / `nickname.ts` | 도메인 로직 |
 | `lib/supabase/server.ts`, `lib/supabase/client.ts` | Supabase 클라이언트 |

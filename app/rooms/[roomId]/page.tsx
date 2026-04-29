@@ -7,6 +7,7 @@ import { getParticipantCookieName } from "@/lib/participant-session";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
 import { buildDateResults } from "@/lib/schedule-results";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 import { JoinForm } from "./JoinForm";
 import { RoomDateResults } from "./RoomDateResults";
 import { RoomPasswordForm } from "./RoomPasswordForm";
@@ -270,7 +271,9 @@ export default async function RoomPage({
           <p className="mt-1 text-xs text-app-muted">비밀번호가 설정된 방입니다.</p>
         ) : null}
         {room.is_closed ? (
-          <p className="mt-1 text-xs text-amber-700">모집 마감된 방입니다. (확인만 가능)</p>
+          <InlineMessage tone="info" className="mt-2">
+            모집 마감된 방입니다. (확인만 가능)
+          </InlineMessage>
         ) : null}
         {room.fixed_start_date ? (
           <p className="mt-1 text-xs text-green-700">
@@ -286,16 +289,18 @@ export default async function RoomPage({
         <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
           <h2 className="text-base font-semibold">방장 관리</h2>
           {manageError ? (
-            <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{manageError}</p>
+            <InlineMessage tone="error" className="mt-2">
+              {manageError}
+            </InlineMessage>
           ) : null}
           {managed ? (
-            <p className="mt-2 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">
+            <InlineMessage tone="success" className="mt-2">
               {managed === "closed"
                 ? "모집을 마감했어요."
                 : managed === "fixed"
                   ? "일정을 확정했어요."
                   : "확정 일정을 삭제했어요."}
-            </p>
+            </InlineMessage>
           ) : null}
           {canClose ? (
             <form className="mt-3" method="post" action={`/api/rooms/${room.id}/manage`}>
@@ -412,11 +417,11 @@ export default async function RoomPage({
                 일정 입력/수정은 아래에서 내 캘린더 열기를 눌러 진행해 주세요.
               </p>
               {joined === "1" ? (
-                <p className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">
+                <InlineMessage tone="success" className="mt-3">
                   {rejoin === "1"
                     ? "이미 이 방에 등록된 닉네임이에요."
                     : "참여가 완료되었습니다."}
-                </p>
+                </InlineMessage>
               ) : null}
               <Link
                 href={`/rooms/${room.id}?view=calendar`}
@@ -432,14 +437,16 @@ export default async function RoomPage({
                 닉네임은 브라우저에 저장되어 다음 참여 시 자동 입력됩니다.
               </p>
               {error ? (
-                <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+                <InlineMessage tone="error" className="mt-3">
+                  {error}
+                </InlineMessage>
               ) : null}
               {joined === "1" ? (
-                <p className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">
+                <InlineMessage tone="success" className="mt-3">
                   {rejoin === "1"
                     ? "이미 이 방에 등록된 닉네임이에요."
                     : "참여가 완료되었습니다."}
-                </p>
+                </InlineMessage>
               ) : null}
               <div className="mt-4">
                 <JoinForm roomId={room.id} />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InlineMessage } from "@/components/ui/InlineMessage";
 
 type RoomPasswordFormProps = {
   roomId: string;
@@ -18,9 +19,9 @@ export function RoomPasswordForm({
       <h2 className="text-base font-semibold">비밀번호로 보호된 방입니다</h2>
       <p className="mt-1 text-sm text-app-muted">방 제목: {roomName}</p>
       {wrongPassword ? (
-        <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+        <InlineMessage tone="error" className="mt-3">
           비밀번호가 일치하지 않아요. 다시 입력해 주세요.
-        </p>
+        </InlineMessage>
       ) : null}
       <form
         className="mt-4 grid gap-3"
