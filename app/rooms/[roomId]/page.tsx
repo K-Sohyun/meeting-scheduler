@@ -159,6 +159,9 @@ export default async function RoomPage({
     .order("created_at", { ascending: true });
 
   const participantIdFromCookie = cookieStore.get(getParticipantCookieName(room.id))?.value;
+  const participantNameById = Object.fromEntries(
+    (participants ?? []).map((participant) => [participant.id, participant.nickname]),
+  );
   const myParticipant = (participants ?? []).find(
     (participant) => participant.id === participantIdFromCookie,
   );
@@ -188,11 +191,12 @@ export default async function RoomPage({
       status: "best" | "ok";
     }[];
     scheduleRowCount = schedulesTyped.length;
-    respondedParticipantCount = new Set(schedulesTyped.map((row) => row.participant_id)).size;
+    const respondedParticipantIds = [...new Set(schedulesTyped.map((row) => row.participant_id))];
+    respondedParticipantCount = respondedParticipantIds.length;
     resultRanked = buildDateResults({
       dateRangeStart: room.date_range_start,
       dateRangeEnd: room.date_range_end,
-      participantIds,
+      participantIds: respondedParticipantIds,
       expectedParticipantCount: room.expected_participant_count ?? 0,
       schedules: schedulesTyped,
     });
@@ -380,6 +384,7 @@ export default async function RoomPage({
                 ranked={resultRanked}
                 participantCount={participants?.length ?? 0}
                 respondedCount={respondedParticipantCount}
+                participantNameById={participantNameById}
                 expectedCount={expectedCount}
                 roomType={room.type === "travel" ? "travel" : "single"}
                 nights={room.nights}
@@ -482,6 +487,7 @@ export default async function RoomPage({
             ranked={resultRanked}
             participantCount={participants?.length ?? 0}
             respondedCount={respondedParticipantCount}
+            participantNameById={participantNameById}
             expectedCount={expectedCount}
             roomType={room.type === "travel" ? "travel" : "single"}
             nights={room.nights}

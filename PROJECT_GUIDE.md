@@ -133,9 +133,11 @@
   - 이미 선택된 **시작일**을 다시 누르면 구간 해제
   - 구간 내부 날짜를 누르면 해당 날짜를 새 시작일로 재지정
 - **결과 표시(RoomDateResults)**:
+  - `buildDateResults`는 `schedules`가 있는 참여자 id만 모수로 사용(응답자 기준 집계). 날짜별 `canParticipantIds`로 `가능한 사람` 목록 표시
   - `canCount > 0`인 항목만 노출
   - 참여 화면 최대 3개, 캘린더 화면 최대 6개
-  - 여행은 구간(`시작~종료`) 기준으로 표시, 카드 수치는 `선호` + `(가능 총 n/N명)`만 노출
+  - 일반: `선호`/`가능` 숫자는 테마색 강조, `가능한 사람 :` 닉네임 목록(긴 이름은 줄바꿈)
+  - 여행: 구간(`시작~종료`) 기준, 카드에는 `선호` 수치 + 구간 전체에 공통으로 가능한 사람만 `가능한 사람`에 표시(교집합)
 
 마감 후에는 일정 `PUT`이 403으로 막히고, 방장만 관리 액션 가능.
 
@@ -162,7 +164,7 @@ ALTER TABLE rooms
   ADD COLUMN IF NOT EXISTS creator_claim_token text;
 
 COMMENT ON COLUMN rooms.creator_claim_token IS
-  '방 개설 응답 쿠키와 일치하는 첫 join 만 owner_participant_id 설정(레거시는 NULL)';
+  'join 시 개설자 쿠키와 일치할 때만 owner_participant_id 선점(자동 1인 방장은 없음)';
 ```
 
 ---
@@ -185,7 +187,9 @@ Supabase에서 두 테이블 Realtime이 켜져 있어야 합니다.
 
 | 경로 | 역할 |
 |------|------|
+| `app/loading.tsx` | 라우트 전환 공통 로딩 |
 | `app/rooms/new/create/route.ts` | 방 생성 + 개설자 토큰/쿠키 |
+| `app/rooms/new/CreateRoomForm.tsx` | 방 생성 폼(제출 중 스피너) |
 | `app/rooms/[roomId]/join/route.ts` | 참여 처리 + owner 할당 규칙 |
 | `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/삭제 alert) |
 | `app/rooms/[roomId]/page.tsx` | 방 상세 조합 |

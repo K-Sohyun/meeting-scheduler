@@ -5,6 +5,7 @@ type RoomDateResultsProps = {
   ranked: DateResultRow[];
   participantCount: number;
   respondedCount: number;
+  participantNameById: Record<string, string>;
   expectedCount: number;
   roomType?: "single" | "travel";
   nights?: number | null;
@@ -18,6 +19,7 @@ export function RoomDateResults({
   ranked,
   participantCount,
   respondedCount,
+  participantNameById,
   expectedCount,
   roomType = "single",
   nights = null,
@@ -86,8 +88,15 @@ export function RoomDateResults({
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-app-muted">
-                선호 {row.bestCount} · (가능 총 {row.canCount}/{participantCount}명)
+              <p className="mt-0.5 text-xs">
+                <span className="text-app-text">선호 </span>
+                <span className="font-bold text-app-primary">{row.bestCount}</span>
+              </p>
+              <p className="mt-1 text-xs flex">
+                <span className="text-app-muted flex-none pr-1">가능한 사람:</span>{" "}
+                <span className="min-w-0 break-words text-app-muted">
+                  {formatNicknameList(row.canParticipantIds, participantNameById)}
+                </span>
               </p>
             </li>
           ))}
@@ -111,8 +120,17 @@ export function RoomDateResults({
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-app-muted">
-                선호 {row.bestCount} · 가능 {row.okCount} · (가능 총 {row.canCount}/{participantCount}명)
+              <p className="mt-0.5 text-xs">
+                <span className="text-app-text">선호 </span>
+                <span className="font-bold text-app-primary">{row.bestCount}</span>
+                <span className="text-app-text"> · 가능 </span>
+                <span className="font-bold text-app-primary">{row.okCount}</span>
+              </p>
+              <p className="mt-1 text-xs flex">
+                <span className="text-app-muted flex-none pr-1">가능한 사람:</span>{" "}
+                <span className="min-w-0 break-words text-app-muted">
+                  {formatNicknameList(row.canParticipantIds, participantNameById)}
+                </span>
               </p>
             </li>
           ))}
@@ -130,6 +148,7 @@ function buildTravelRanges(rows: DateResultRow[], nights: number) {
     endDate: string;
     bestCount: number;
     canCount: number;
+    canParticipantIds: string[];
     perfectMatch: boolean;
   }> = [];
 
@@ -149,11 +168,17 @@ function buildTravelRanges(rows: DateResultRow[], nights: number) {
     if (!valid || span.length === 0) {
       continue;
     }
+    let commonCanIds = [...span[0].canParticipantIds];
+    for (let i = 1; i < span.length; i += 1) {
+      const set = new Set(span[i].canParticipantIds);
+      commonCanIds = commonCanIds.filter((id) => set.has(id));
+    }
     result.push({
       startDate,
       endDate: format(addDays(start, nights), "yyyy-MM-dd"),
       bestCount: Math.min(...span.map((row) => row.bestCount)),
       canCount: Math.min(...span.map((row) => row.canCount)),
+      canParticipantIds: commonCanIds,
       perfectMatch: span.every((row) => row.perfectMatch),
     });
   }
@@ -167,4 +192,11 @@ function buildTravelRanges(rows: DateResultRow[], nights: number) {
     }
     return a.startDate.localeCompare(b.startDate);
   });
+}
+
+function formatNicknameList(ids: string[], participantNameById: Record<string, string>) {
+  if (ids.length === 0) {
+    return "없음";
+  }
+  return ids.map((id) => participantNameById[id] ?? "알 수 없음").join(", ");
 }

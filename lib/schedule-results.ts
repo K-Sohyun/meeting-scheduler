@@ -12,6 +12,8 @@ export type DateResultRow = {
   okCount: number;
   score: number;
   canCount: number;
+  /** 그날 best/ok 응답을 남긴 참여자 id 목록 */
+  canParticipantIds: string[];
   /** 참여자 중 그날 best/ok 를 쓰지 않은 인원 (미기록=불가) */
   stragglerCount: number;
   perfectMatch: boolean;
@@ -60,14 +62,17 @@ export function buildDateResults(params: {
     let bestCount = 0;
     let okCount = 0;
     let withResponse = 0;
+    const canParticipantIds: string[] = [];
     for (const pid of participantIds) {
       const st = m.get(pid);
       if (st === "best") {
         bestCount += 1;
         withResponse += 1;
+        canParticipantIds.push(pid);
       } else if (st === "ok") {
         okCount += 1;
         withResponse += 1;
+        canParticipantIds.push(pid);
       }
     }
     const canCount = bestCount + okCount;
@@ -82,6 +87,7 @@ export function buildDateResults(params: {
       okCount,
       score,
       canCount,
+      canParticipantIds,
       stragglerCount,
       perfectMatch,
       gapToExpected,
