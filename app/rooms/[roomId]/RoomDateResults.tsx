@@ -4,6 +4,7 @@ import type { DateResultRow } from "@/lib/schedule-results";
 type RoomDateResultsProps = {
   ranked: DateResultRow[];
   participantCount: number;
+  respondedCount: number;
   expectedCount: number;
   roomType?: "single" | "travel";
   nights?: number | null;
@@ -16,6 +17,7 @@ type RoomDateResultsProps = {
 export function RoomDateResults({
   ranked,
   participantCount,
+  respondedCount,
   expectedCount,
   roomType = "single",
   nights = null,
@@ -58,7 +60,7 @@ export function RoomDateResults({
       </p>
       {expectedCount > 0 ? (
         <p className="mt-1 text-sm text-app-muted">
-          (현재 예상 인원 <b>{expectedCount}명</b> 중 <b>{participantCount}명</b> 참여)
+          (현재 예상 인원 <b>{expectedCount}명</b> 중 <b>{respondedCount}명</b> 응답)
         </p>
       ) : null}
       {(roomType === "travel" ? showTravelRanges.length === 0 : show.length === 0) ? (

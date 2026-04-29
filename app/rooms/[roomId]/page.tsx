@@ -379,6 +379,7 @@ export default async function RoomPage({
               <RoomDateResults
                 ranked={resultRanked}
                 participantCount={participants?.length ?? 0}
+                respondedCount={respondedParticipantCount}
                 expectedCount={expectedCount}
                 roomType={room.type === "travel" ? "travel" : "single"}
                 nights={room.nights}
@@ -480,6 +481,7 @@ export default async function RoomPage({
           <RoomDateResults
             ranked={resultRanked}
             participantCount={participants?.length ?? 0}
+            respondedCount={respondedParticipantCount}
             expectedCount={expectedCount}
             roomType={room.type === "travel" ? "travel" : "single"}
             nights={room.nights}
