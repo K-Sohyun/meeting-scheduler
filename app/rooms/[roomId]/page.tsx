@@ -152,8 +152,13 @@ export default async function RoomPage({
           </Link>
         </nav>
         <section className="rounded-2xl bg-app-card p-5 shadow-sm">
-          <p className="text-sm font-medium text-app-primary">
+          <p className="flex items-center gap-1 text-sm font-medium text-app-primary">
             {room.type === "travel" ? "여행 모임" : "일반 모임"}
+            {room.password_hash ? (
+              <span aria-label="비밀번호가 설정된 방" className="select-none text-xs" title="비밀번호가 설정된 방">
+                🔒
+              </span>
+            ) : null}
           </p>
           <h1 className="mt-2 text-xl font-bold">{room.name}</h1>
         </section>
@@ -267,8 +272,13 @@ export default async function RoomPage({
       </nav>
 
       <section className="rounded-2xl bg-app-card p-5 shadow-sm">
-        <p className="text-sm font-medium text-app-primary">
+        <p className="flex items-center gap-1 text-sm font-medium text-app-primary">
           {room.type === "travel" ? "여행 모임" : "일반 모임"}
+          {room.password_hash ? (
+            <span aria-label="비밀번호가 설정된 방" className="select-none text-xs" title="비밀번호가 설정된 방">
+              🔒
+            </span>
+          ) : null}
         </p>
         <h1 className="mt-2 text-xl font-bold">{room.name}</h1>
         <p className="mt-3 text-sm leading-6 text-app-muted">
@@ -285,17 +295,17 @@ export default async function RoomPage({
           <p className="mt-1 text-xs text-app-muted">비밀번호가 설정된 방입니다.</p>
         ) : null}
         {room.is_closed ? (
-          <InlineMessage tone="info" className="mt-2">
+          <InlineMessage tone="neutral" className="mt-2">
             모집 마감된 방입니다. (확인만 가능)
           </InlineMessage>
         ) : null}
         {room.fixed_start_date ? (
-          <p className="mt-1 text-xs text-green-700">
+          <InlineMessage tone="success" className="mt-2">
             확정 일정: {room.fixed_start_date}
             {room.fixed_end_date && room.fixed_end_date !== room.fixed_start_date
               ? ` ~ ${room.fixed_end_date}`
               : ""}
-          </p>
+          </InlineMessage>
         ) : null}
       </section>
 
@@ -334,7 +344,7 @@ export default async function RoomPage({
                   <input type="hidden" name="action" value="clear_fix" />
                   <button
                     type="submit"
-                    className="h-10 w-full rounded-xl bg-app-primary-soft px-4 text-sm font-medium text-app-primary"
+                    className="h-10 w-full rounded-xl border border-violet-200 bg-app-primary-soft px-4 text-sm font-medium text-app-primary"
                   >
                     확정 일정 삭제
                   </button>

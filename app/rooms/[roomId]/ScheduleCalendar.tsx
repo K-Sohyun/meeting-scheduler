@@ -37,7 +37,7 @@ type RoomInfo = {
 
 type ScheduleStatus = "best" | "ok";
 type ScheduleMap = Record<string, ScheduleStatus>;
-type MessageTone = "success" | "error" | "info";
+type MessageTone = "success" | "error" | "info" | "neutral";
 
 type ScheduleCalendarProps = {
   room: RoomInfo;
@@ -370,7 +370,15 @@ export function ScheduleCalendar({
       ) : null}
       {loadState === "ok" && message ? (
         <InlineMessage
-          tone={messageTone === "success" ? "success" : messageTone === "error" ? "error" : "info"}
+          tone={
+            messageTone === "success"
+              ? "success"
+              : messageTone === "error"
+                ? "error"
+                : messageTone === "neutral"
+                  ? "neutral"
+                  : "info"
+          }
           className="mt-3"
         >
           {message}
@@ -460,7 +468,7 @@ export function ScheduleCalendar({
           disabled={readOnly || !hasUnsavedChanges || isSaving}
           onClick={() => {
             setSchedules(savedSchedules);
-            showMessage("마지막 저장 상태로 되돌렸습니다.", "info");
+            showMessage("마지막 저장 상태로 되돌렸습니다.", "neutral");
           }}
           className="h-10 w-full rounded-xl bg-app-primary-soft px-4 text-sm font-medium text-app-primary disabled:opacity-50"
         >
