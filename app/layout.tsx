@@ -24,15 +24,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-/** 공개 URL(OG `metadataBase` 기본). 커스텀 도메인이면 `NEXT_PUBLIC_APP_URL`로 덮어쓴다. */
+/** `VERCEL_URL`은 배포마다 바뀌는 해시 URL이라 고정 공개 도메인 사용 */
 const PRODUCTION_APP_URL = "https://moyora-scheduler.vercel.app";
 
 function getMetadataBase(): URL {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return new URL(process.env.NEXT_PUBLIC_APP_URL);
-  }
-  if (process.env.VERCEL_URL) {
-    return new URL(`https://${process.env.VERCEL_URL}`);
   }
   if (process.env.NODE_ENV === "development") {
     return new URL("http://localhost:3000");
