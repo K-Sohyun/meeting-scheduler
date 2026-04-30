@@ -24,9 +24,51 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** 공개 URL(OG `metadataBase` 기본). 커스텀 도메인이면 `NEXT_PUBLIC_APP_URL`로 덮어쓴다. */
+const PRODUCTION_APP_URL = "https://moyora-scheduler.vercel.app";
+
+function getMetadataBase(): URL {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return new URL(process.env.NEXT_PUBLIC_APP_URL);
+  }
+  if (process.env.VERCEL_URL) {
+    return new URL(`https://${process.env.VERCEL_URL}`);
+  }
+  if (process.env.NODE_ENV === "development") {
+    return new URL("http://localhost:3000");
+  }
+  return new URL(PRODUCTION_APP_URL);
+}
+
+const ogTitle = "모여라 - 일정 조율";
+const ogDescription =
+  "닉네임으로 쉽게 참여하고, 가능한 날짜를 한눈에 확인할 수 있어요.";
+
 export const metadata: Metadata = {
-  title: "모여라 - 일정 조율",
+  metadataBase: getMetadataBase(),
+  title: ogTitle,
   description: "친구들과 약속/여행 일정을 빠르게 조율하는 서비스",
+  openGraph: {
+    title: ogTitle,
+    description: ogDescription,
+    type: "website",
+    locale: "ko_KR",
+    siteName: "모여라",
+    images: [
+      {
+        url: "/images/og.jpg",
+        width: 1200,
+        height: 630,
+        alt: "모여라 — 약속과 여행 일정을 빠르게 맞춰보세요",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: ogTitle,
+    description: ogDescription,
+    images: ["/images/og.jpg"],
+  },
 };
 
 export default function RootLayout({

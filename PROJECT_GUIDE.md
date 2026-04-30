@@ -63,6 +63,7 @@
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon 키(서버/브라우저 공통 클라이언트에서 사용) |
 | `HOLIDAY_API_SERVICE_KEY` | 공휴일 API 키 (`/api/holidays`에서만 사용) |
+| `NEXT_PUBLIC_APP_URL` (선택) | 공개 사이트 원점(예: 커스텀 도메인). 미설정 시 Vercel은 `VERCEL_URL`, 그 외에는 앱 루트 `layout`의 기본 프로덕션 URL로 링크 미리보기 `metadataBase`를 잡는다. |
 
 ---
 
