@@ -1,19 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type RoomRealtimeListenerProps = {
   roomId: string;
 };
 
+const DEBOUNCE_MS = 250;
+/** Realtime 연결 전·실패 시에만 자주 물어봄 (분당 ~4회) */
+const POLL_MS_FAST = 15000;
+/** Realtime이 붙은 뒤는 이벤트가 주력이므로 안전망만 길게 (분당 ~1.3회) */
+const POLL_MS_SLOW = 45000;
+
 /**
  * `schedules` / `participants` 변경 시 서버 데이터를 다시 불러옵니다.
- * Supabase 대시보드 → Database → Tables → `schedules`, `participants` → Realtime ON
+ * Supabase Realtime이 켜져 있으면 변경은 이벤트로 처리하고, 폴링은 느리게만 돕니다.
+ * 탭이 안 보일 때는 폴링하지 않습니다.
  */
 export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
   const router = useRouter();
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     let client: ReturnType<typeof createSupabaseBrowserClient>;
@@ -23,24 +31,43 @@ export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
       return;
     }
 
-    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
-    const refresh = () => {
-      if (refreshTimer !== undefined) {
-        clearTimeout(refreshTimer);
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current !== undefined) {
+        clearTimeout(refreshTimerRef.current);
       }
-      /** DELETE 후 INSERT 등 연속 이벤트가 끝난 뒤 한 번만 갱신해, 중간 상태가 화면에 남지 않게 함 */
-      refreshTimer = setTimeout(() => {
-        refreshTimer = undefined;
+      refreshTimerRef.current = setTimeout(() => {
+        refreshTimerRef.current = undefined;
         router.refresh();
-      }, 200);
+      }, DEBOUNCE_MS);
     };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRefresh();
+      }
+    };
+
+    let pollId: number | undefined;
+    const setPollInterval = (ms: number) => {
+      if (pollId !== undefined) {
+        window.clearInterval(pollId);
+        pollId = undefined;
+      }
+      pollId = window.setInterval(() => {
+        if (document.visibilityState === "visible") {
+          scheduleRefresh();
+        }
+      }, ms);
+    };
+
+    setPollInterval(POLL_MS_FAST);
 
     const ch = client
       .channel(`room-${roomId}-updates`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "schedules", filter: `room_id=eq.${roomId}` },
-        refresh,
+        scheduleRefresh,
       )
       .on(
         "postgres_changes",
@@ -50,14 +77,41 @@ export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
           table: "participants",
           filter: `room_id=eq.${roomId}`,
         },
-        refresh,
+        scheduleRefresh,
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "travel_segment_starts",
+          filter: `room_id=eq.${roomId}`,
+        },
+        scheduleRefresh,
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setPollInterval(POLL_MS_SLOW);
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setPollInterval(POLL_MS_FAST);
+          scheduleRefresh();
+        }
+      });
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", scheduleRefresh);
 
     return () => {
-      if (refreshTimer !== undefined) {
-        clearTimeout(refreshTimer);
+      if (refreshTimerRef.current !== undefined) {
+        clearTimeout(refreshTimerRef.current);
       }
+      if (pollId !== undefined) {
+        window.clearInterval(pollId);
+      }
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", scheduleRefresh);
       void client.removeChannel(ch);
     };
   }, [roomId, router]);

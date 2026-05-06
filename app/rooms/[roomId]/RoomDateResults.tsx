@@ -9,6 +9,8 @@ type RoomDateResultsProps = {
   expectedCount: number;
   roomType?: "single" | "travel";
   nights?: number | null;
+  /** 여행: 참가자별 저장·추론된 여행 구간 시작일의 합집합(슬라이딩 후보 필터) */
+  travelAllowedStarts?: string[];
   /** 방에 저장된 schedules 행 수 (0이면 아직 아무도 가능 일정을 제출하지 않음) */
   scheduleRowCount: number;
   /** 지정 시, 응답이 있는 날짜만 골라 최대 N개까지 표시(응답 날이 N개보다 적으면 그만큼만) */
@@ -23,6 +25,7 @@ export function RoomDateResults({
   expectedCount,
   roomType = "single",
   nights = null,
+  travelAllowedStarts = [],
   scheduleRowCount,
   maxRows,
 }: RoomDateResultsProps) {
@@ -50,7 +53,9 @@ export function RoomDateResults({
   const show =
     maxRows !== undefined ? respondedOnly.slice(0, maxRows) : respondedOnly;
   const travelRanges =
-    roomType === "travel" && nights != null ? buildTravelRecommendationRanges(ranked, nights) : [];
+    roomType === "travel" && nights != null
+      ? buildTravelRecommendationRanges(ranked, nights, new Set(travelAllowedStarts))
+      : [];
   const showTravelRanges =
     maxRows !== undefined ? travelRanges.slice(0, maxRows) : travelRanges;
 

@@ -24,19 +24,26 @@ export function RoomsActionToast({ createdRoomId, deleted }: RoomsActionToastPro
     if (!message) {
       return;
     }
-    setToastMessage(message);
-
-    const url = new URL(window.location.href);
-    if (deleted) {
-      url.searchParams.delete("deleted");
-    }
-    if (createdRoomId) {
-      url.searchParams.delete("created");
-    }
-    window.history.replaceState({}, "", url.toString());
-
-    const timeoutId = window.setTimeout(() => setToastMessage(""), 2500);
-    return () => window.clearTimeout(timeoutId);
+    // 브라우저 타이머 id로 관리 (rooms 목록 토스트는 클라이언트 전용 동작)
+    let hideId: number | undefined;
+    const showId = window.setTimeout(() => {
+      setToastMessage(message);
+      const url = new URL(window.location.href);
+      if (deleted) {
+        url.searchParams.delete("deleted");
+      }
+      if (createdRoomId) {
+        url.searchParams.delete("created");
+      }
+      window.history.replaceState({}, "", url.toString());
+      hideId = window.setTimeout(() => setToastMessage(""), 2500);
+    }, 0);
+    return () => {
+      window.clearTimeout(showId);
+      if (hideId !== undefined) {
+        window.clearTimeout(hideId);
+      }
+    };
   }, [createdRoomId, deleted, message]);
 
   return toastMessage ? <ToastPopup message={toastMessage} /> : null;

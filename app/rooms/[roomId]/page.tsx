@@ -6,6 +6,7 @@ import { getParticipantCookieName } from "@/lib/participant-session";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
 import { buildDateResults, type ScheduleRow } from "@/lib/schedule-results";
 import { buildTravelRecommendationRanges } from "@/lib/travel-recommendation";
+import { buildTravelAllowedStartUnion } from "@/lib/travel-segment-starts";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { JoinForm } from "./JoinForm";
@@ -23,8 +24,9 @@ export const dynamic = "force-dynamic";
 function buildTravelFixRanges(
   ranked: ReturnType<typeof buildDateResults>,
   nights: number,
+  allowedStarts: Set<string>,
 ) {
-  return buildTravelRecommendationRanges(ranked, nights).map((r) => ({
+  return buildTravelRecommendationRanges(ranked, nights, allowedStarts).map((r) => ({
     startDate: r.startDate,
     endDate: r.endDate,
     canCount: r.canCount,
@@ -194,6 +196,27 @@ export default async function RoomPage({
       schedules: schedulesTyped,
     });
   }
+
+  let travelSegRows: { participant_id: string; start_date: string }[] = [];
+  if (room.type === "travel" && participantIds.length > 0) {
+    const { data: seg } = await supabase
+      .from("travel_segment_starts")
+      .select("participant_id, start_date")
+      .eq("room_id", room.id);
+    travelSegRows = (seg ?? []) as { participant_id: string; start_date: string }[];
+  }
+
+  const travelAllowedStartUnion =
+    room.type === "travel" && respondedParticipantIds.length > 0 && room.nights != null
+      ? buildTravelAllowedStartUnion({
+          respondedParticipantIds,
+          segmentRows: travelSegRows,
+          schedules: schedulesTyped,
+          nights: room.nights,
+        })
+      : new Set<string>();
+  const travelAllowedStartsSorted = [...travelAllowedStartUnion].sort((a, b) => a.localeCompare(b));
+
   const expectedCount = room.expected_participant_count ?? 0;
   const canClose =
     isOwner &&
@@ -203,7 +226,9 @@ export default async function RoomPage({
     respondedParticipantCount >= expectedCount;
   const showOwnerManage = isOwner;
   const travelFixRanges =
-    room.type === "travel" && room.nights != null ? buildTravelFixRanges(resultRanked, room.nights) : [];
+    room.type === "travel" && room.nights != null
+      ? buildTravelFixRanges(resultRanked, room.nights, travelAllowedStartUnion)
+      : [];
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col px-5 pb-6 pt-8">
@@ -391,6 +416,7 @@ export default async function RoomPage({
                 roomType={room.type === "travel" ? "travel" : "single"}
                 nights={room.nights}
                 scheduleRowCount={scheduleRowCount}
+                travelAllowedStarts={travelAllowedStartsSorted}
                 maxRows={6}
               />
             </>
@@ -496,6 +522,7 @@ export default async function RoomPage({
             roomType={room.type === "travel" ? "travel" : "single"}
             nights={room.nights}
             scheduleRowCount={scheduleRowCount}
+            travelAllowedStarts={travelAllowedStartsSorted}
             maxRows={3}
           />
         </>

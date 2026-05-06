@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 
 type RoomPasswordFormProps = {
