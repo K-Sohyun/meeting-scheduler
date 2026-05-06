@@ -144,7 +144,7 @@
   - `canCount > 0`인 항목만 노출
   - 참여 화면 최대 3개, 캘린더 화면 최대 6개
   - 일반: `선호`/`가능` 숫자는 테마색 강조, `가능한 사람 :` 닉네임 목록(긴 이름은 줄바꿈)
-  - 여행: 구간(`시작~종료`) 기준, 카드에는 `선호` 수치 + 구간 전체에 공통으로 가능한 사람만 `가능한 사람`에 표시(교집합)
+  - 여행: 방 범위 안에서 `nights+1`일 **슬라이딩 창**마다 날짜별 best/ok **교집합**으로 `가능한 사람`을 계산하고, 교집합이 비면 제외. 같은 참가자 조합인 창이 여럿이면 **창 구간이 날짜 겹침으로 이어지는 것끼리** 묶고(연결 요소), 각 묶음 안에서는 **가장 이른·가장 늦은 시작일** 창만 남김. 이렇게 하면 DB에 연속 10~17만 있어도 A만 있을 때 10~13·14~17 형태로 정리되고, 날짜가 떨어진 두 구간은 서로 다른 묶음으로 각각 한 줄씩 나옴. 정렬: 가능 인원 수 내림차순 → 시작일 오름차순
 
 마감 후에는 일정 `PUT`이 403으로 막히고, 방장만 관리 액션 가능.
 
@@ -178,8 +178,10 @@ COMMENT ON COLUMN rooms.creator_claim_token IS
 
 ## 9. Realtime
 
-`RoomRealtimeListener`가 `schedules`, `participants` 변경을 구독하고 `router.refresh()`를 호출합니다.  
+`RoomRealtimeListener`가 `schedules`, `participants` 변경을 구독하고 `router.refresh()`를 호출합니다(연속 변경은 짧게 묶어 한 번만 갱신).  
 Supabase에서 두 테이블 Realtime이 켜져 있어야 합니다.
+
+`app/rooms/[roomId]/page.tsx`는 `dynamic = "force-dynamic"`으로 방 상세·추천이 캐시된 RSC 스냅샷에 머물지 않게 합니다.
 
 ---
 
@@ -201,7 +203,7 @@ Supabase에서 두 테이블 Realtime이 켜져 있어야 합니다.
 | `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/생성·삭제 토스트) |
 | `app/rooms/RoomsActionToast.tsx` | `/rooms` 생성·삭제 완료 토스트 + 쿼리 정리 |
 | `app/rooms/[roomId]/page.tsx` | 방 상세 조합 |
-| `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더 |
+| `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더(저장 성공 시 `router.refresh` 즉시 + ~220ms 후 한 번 더) |
 | `app/rooms/[roomId]/RoomDateResults.tsx` | 추천 결과 UI |
 | `app/rooms/[roomId]/DeleteRoomForm.tsx` | 방 삭제 확인 |
 | `app/api/rooms/[roomId]/manage/route.ts` | 방장 액션 API |
@@ -210,7 +212,7 @@ Supabase에서 두 테이블 Realtime이 켜져 있어야 합니다.
 | `components/ui/InlineMessage.tsx` | 성공/안내/에러 공통 배너 |
 | `components/ui/ToastPopup.tsx` | 완료 피드백 공통 토스트 |
 | `lib/room-creator.ts` / `participant-session.ts` / `room-unlock.ts` | 쿠키 키 유틸 |
-| `lib/schedule-validate.ts` / `schedule-results.ts` / `nickname.ts` | 도메인 로직 |
+| `lib/schedule-validate.ts` / `schedule-results.ts` / `travel-recommendation.ts` / `nickname.ts` | 도메인 로직 |
 | `lib/supabase/server.ts`, `lib/supabase/client.ts` | Supabase 클라이언트 |
 
 ---

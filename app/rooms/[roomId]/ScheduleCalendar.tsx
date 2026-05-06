@@ -261,6 +261,9 @@ export function ScheduleCalendar({
     showMessage("일정이 저장되었습니다.", "success");
     setToastMessage("일정이 저장되었습니다.");
     router.refresh();
+    window.setTimeout(() => {
+      router.refresh();
+    }, 220);
   }
 
   function onDateClick(date: string) {

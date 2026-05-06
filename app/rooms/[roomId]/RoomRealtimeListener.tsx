@@ -23,8 +23,16 @@ export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
       return;
     }
 
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => {
-      router.refresh();
+      if (refreshTimer !== undefined) {
+        clearTimeout(refreshTimer);
+      }
+      /** DELETE 후 INSERT 등 연속 이벤트가 끝난 뒤 한 번만 갱신해, 중간 상태가 화면에 남지 않게 함 */
+      refreshTimer = setTimeout(() => {
+        refreshTimer = undefined;
+        router.refresh();
+      }, 200);
     };
 
     const ch = client
@@ -47,6 +55,9 @@ export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
       .subscribe();
 
     return () => {
+      if (refreshTimer !== undefined) {
+        clearTimeout(refreshTimer);
+      }
       void client.removeChannel(ch);
     };
   }, [roomId, router]);

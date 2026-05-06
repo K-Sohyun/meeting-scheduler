@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { addDays, format, parseISO } from "date-fns";
 import { z } from "zod";
 import { getHolidaysInRange } from "@/lib/holidays";
 import { getParticipantCookieName } from "@/lib/participant-session";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
-import { buildDateResults } from "@/lib/schedule-results";
+import { buildDateResults, type ScheduleRow } from "@/lib/schedule-results";
+import { buildTravelRecommendationRanges } from "@/lib/travel-recommendation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { JoinForm } from "./JoinForm";
@@ -17,43 +17,18 @@ import { DeleteRoomForm } from "./DeleteRoomForm";
 
 const roomIdSchema = z.string().uuid();
 
+/** 일정·추천이 항상 DB 최신을 반영하도록(캐시된 RSC 페이로드 방지) */
+export const dynamic = "force-dynamic";
+
 function buildTravelFixRanges(
   ranked: ReturnType<typeof buildDateResults>,
   nights: number,
 ) {
-  const byDate = new Map(ranked.filter((row) => row.canCount > 0).map((row) => [row.date, row]));
-  const sortedStarts = [...byDate.keys()].sort((a, b) => a.localeCompare(b));
-  const ranges: Array<{ startDate: string; endDate: string; canCount: number }> = [];
-
-  for (const startDate of sortedStarts) {
-    const start = parseISO(startDate);
-    const span = [];
-    let valid = true;
-    for (let i = 0; i <= nights; i += 1) {
-      const date = format(addDays(start, i), "yyyy-MM-dd");
-      const row = byDate.get(date);
-      if (!row) {
-        valid = false;
-        break;
-      }
-      span.push(row);
-    }
-    if (!valid || span.length === 0) {
-      continue;
-    }
-    ranges.push({
-      startDate,
-      endDate: format(addDays(start, nights), "yyyy-MM-dd"),
-      canCount: Math.min(...span.map((row) => row.canCount)),
-    });
-  }
-
-  return ranges.sort((a, b) => {
-    if (a.canCount !== b.canCount) {
-      return b.canCount - a.canCount;
-    }
-    return a.startDate.localeCompare(b.startDate);
-  });
+  return buildTravelRecommendationRanges(ranked, nights).map((r) => ({
+    startDate: r.startDate,
+    endDate: r.endDate,
+    canCount: r.canCount,
+  }));
 }
 
 export default async function RoomPage({
@@ -200,18 +175,16 @@ export default async function RoomPage({
   let resultRanked: ReturnType<typeof buildDateResults> = [];
   let scheduleRowCount = 0;
   let respondedParticipantCount = 0;
+  let schedulesTyped: ScheduleRow[] = [];
+  let respondedParticipantIds: string[] = [];
   if (participantIds.length > 0) {
     const { data: allSchedules } = await supabase
       .from("schedules")
       .select("participant_id, date, status")
       .eq("room_id", room.id);
-    const schedulesTyped = (allSchedules ?? []) as {
-      participant_id: string;
-      date: string;
-      status: "best" | "ok";
-    }[];
+    schedulesTyped = (allSchedules ?? []) as ScheduleRow[];
     scheduleRowCount = schedulesTyped.length;
-    const respondedParticipantIds = [...new Set(schedulesTyped.map((row) => row.participant_id))];
+    respondedParticipantIds = [...new Set(schedulesTyped.map((row) => row.participant_id))];
     respondedParticipantCount = respondedParticipantIds.length;
     resultRanked = buildDateResults({
       dateRangeStart: room.date_range_start,

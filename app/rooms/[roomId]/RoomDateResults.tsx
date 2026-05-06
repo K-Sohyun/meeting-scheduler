@@ -1,5 +1,5 @@
-import { addDays, format, parseISO } from "date-fns";
 import type { DateResultRow } from "@/lib/schedule-results";
+import { buildTravelRecommendationRanges } from "@/lib/travel-recommendation";
 
 type RoomDateResultsProps = {
   ranked: DateResultRow[];
@@ -50,7 +50,7 @@ export function RoomDateResults({
   const show =
     maxRows !== undefined ? respondedOnly.slice(0, maxRows) : respondedOnly;
   const travelRanges =
-    roomType === "travel" && nights != null ? buildTravelRanges(respondedOnly, nights) : [];
+    roomType === "travel" && nights != null ? buildTravelRecommendationRanges(ranked, nights) : [];
   const showTravelRanges =
     maxRows !== undefined ? travelRanges.slice(0, maxRows) : travelRanges;
 
@@ -138,60 +138,6 @@ export function RoomDateResults({
       )}
     </section>
   );
-}
-
-function buildTravelRanges(rows: DateResultRow[], nights: number) {
-  const byDate = new Map(rows.map((row) => [row.date, row]));
-  const sortedDates = [...byDate.keys()].sort((a, b) => a.localeCompare(b));
-  const result: Array<{
-    startDate: string;
-    endDate: string;
-    bestCount: number;
-    canCount: number;
-    canParticipantIds: string[];
-    perfectMatch: boolean;
-  }> = [];
-
-  for (const startDate of sortedDates) {
-    const start = parseISO(startDate);
-    const span: DateResultRow[] = [];
-    let valid = true;
-    for (let i = 0; i <= nights; i += 1) {
-      const date = format(addDays(start, i), "yyyy-MM-dd");
-      const row = byDate.get(date);
-      if (!row) {
-        valid = false;
-        break;
-      }
-      span.push(row);
-    }
-    if (!valid || span.length === 0) {
-      continue;
-    }
-    let commonCanIds = [...span[0].canParticipantIds];
-    for (let i = 1; i < span.length; i += 1) {
-      const set = new Set(span[i].canParticipantIds);
-      commonCanIds = commonCanIds.filter((id) => set.has(id));
-    }
-    result.push({
-      startDate,
-      endDate: format(addDays(start, nights), "yyyy-MM-dd"),
-      bestCount: Math.min(...span.map((row) => row.bestCount)),
-      canCount: Math.min(...span.map((row) => row.canCount)),
-      canParticipantIds: commonCanIds,
-      perfectMatch: span.every((row) => row.perfectMatch),
-    });
-  }
-
-  return result.sort((a, b) => {
-    if (a.perfectMatch !== b.perfectMatch) {
-      return a.perfectMatch ? -1 : 1;
-    }
-    if (a.canCount !== b.canCount) {
-      return b.canCount - a.canCount;
-    }
-    return a.startDate.localeCompare(b.startDate);
-  });
 }
 
 function formatNicknameList(ids: string[], participantNameById: Record<string, string>) {
