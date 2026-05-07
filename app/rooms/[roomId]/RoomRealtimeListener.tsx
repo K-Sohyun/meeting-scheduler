@@ -12,7 +12,7 @@ type RoomRealtimeListenerProps = {
   refreshOnLight?: boolean;
 };
 
-const DEBOUNCE_MS = 250;
+const DEBOUNCE_MS = 150;
 /** Realtime 연결 전·실패 시에만 물어봄 (분당 ~2회) */
 const POLL_MS_FAST = 30000;
 /** Realtime이 붙은 뒤는 이벤트가 주력이므로 안전망만 매우 길게 (분당 ~0.7회) */

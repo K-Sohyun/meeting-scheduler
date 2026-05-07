@@ -175,7 +175,7 @@ COMMENT ON COLUMN rooms.creator_claim_token IS
 
 ## 9. Realtime
 
-`RoomRealtimeListener`(항상 마운트): `rooms(id=roomId)`·`schedules`·`participants` **postgres_changes** → **250ms** 디바운스 후  
+`RoomRealtimeListener`(항상 마운트): `rooms(id=roomId)`·`schedules`·`participants` **postgres_changes** → **150ms** 디바운스 후  
 항상 `room-results-revalidate` 이벤트로 SWR(`/results`) 재검증을 트리거합니다.
 - **상세 화면**(`variant=full`): 추가로 `router.refresh()`로 참여자 목록 등 RSC 갱신
 - **캘린더**(`view=calendar`, `variant=light`): 기본은 위 이벤트만(전체 RSC 갱신 없음). 단, **방장 + 미마감** 상태(`refreshOnLight`)이거나 `rooms` 테이블 변경 이벤트(모집 마감/삭제/픽스) 수신 시에는 `router.refresh()`를 함께 호출해 서버 상태 분기를 즉시 반영
