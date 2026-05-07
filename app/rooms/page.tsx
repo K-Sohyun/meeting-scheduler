@@ -87,12 +87,18 @@ export default async function RoomsPage({
         </div>
       </section>
 
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <Link
           href="/rooms/new?type=single"
           className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-app-primary text-sm font-semibold text-white"
         >
-          새 방 만들기
+          일반 모임 생성
+        </Link>
+        <Link
+          href="/rooms/new?type=travel"
+          className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-violet-200 bg-white text-sm font-semibold text-app-primary"
+        >
+          여행 모임 생성
         </Link>
       </div>
     </main>
