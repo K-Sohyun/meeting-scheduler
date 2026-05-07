@@ -409,7 +409,7 @@ export default async function RoomPage({
                 <InlineMessage tone="success" className="mt-3">
                   {rejoin === "1"
                     ? "이미 이 방에 등록된 닉네임이에요."
-                    : "참여가 완료되었습니다."}
+                    : "참여가 완료되었습니다. 일정을 등록해주세요."}
                 </InlineMessage>
               ) : null}
               <Link
@@ -434,7 +434,7 @@ export default async function RoomPage({
                 <InlineMessage tone="success" className="mt-3">
                   {rejoin === "1"
                     ? "이미 이 방에 등록된 닉네임이에요."
-                    : "참여가 완료되었습니다."}
+                    : "참여가 완료되었습니다. 일정을 등록해주세요."}
                 </InlineMessage>
               ) : null}
               <div className="mt-4">
