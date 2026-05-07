@@ -4,10 +4,6 @@ import { isParticipantInRoom } from "@/lib/assert-participant-in-room";
 import { getParticipantCookieName } from "@/lib/participant-session";
 import { isDateInRoomRange } from "@/lib/schedule-validate";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  inferTravelStartsFromSortedBestDates,
-  validateTravelStartsMatchEntries,
-} from "@/lib/travel-segment-starts";
 
 const roomParamsSchema = z.object({
   roomId: z.string().uuid(),
@@ -58,41 +54,7 @@ export async function GET(
   }
 
   const entries = (data ?? []) as { date: string; status: "best" | "ok" }[];
-
-  const { data: roomMeta } = await supabase
-    .from("rooms")
-    .select("type, nights")
-    .eq("id", roomParams.data.roomId)
-    .single();
-
-  if (roomMeta?.type !== "travel") {
-    return NextResponse.json({ entries });
-  }
-
-  const { data: segRows, error: segErr } = await supabase
-    .from("travel_segment_starts")
-    .select("start_date")
-    .eq("room_id", roomParams.data.roomId)
-    .eq("participant_id", parsedParticipantId.data);
-
-  if (segErr) {
-    return NextResponse.json({ error: segErr.message }, { status: 500 });
-  }
-
-  let travelStarts: string[];
-  if (segRows && segRows.length > 0) {
-    travelStarts = segRows.map((r) => r.start_date as string).sort((a, b) => a.localeCompare(b));
-  } else {
-    const bestDates = [
-      ...new Set(entries.filter((e) => e.status === "best").map((e) => e.date)),
-    ].sort((a, b) => a.localeCompare(b));
-    travelStarts =
-      roomMeta.nights != null
-        ? inferTravelStartsFromSortedBestDates(bestDates, roomMeta.nights)
-        : [];
-  }
-
-  return NextResponse.json({ entries, travelStarts });
+  return NextResponse.json({ entries });
 }
 
 export async function PUT(
@@ -151,7 +113,6 @@ export async function PUT(
     byDate.set(e.date, e);
   }
   const entries = [...byDate.values()];
-  let travelStartsToPersist: string[] | null = null;
 
   if (roomRow.type === "travel" && roomRow.nights != null && entries.length > 0) {
     const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
@@ -190,18 +151,6 @@ export async function PUT(
         { status: 400 },
       );
     }
-
-    const sortedDates = sorted.map((e) => e.date);
-    const travelStartsResolved = inferTravelStartsFromSortedBestDates(sortedDates, roomRow.nights);
-    const travelValidateErr = validateTravelStartsMatchEntries(
-      travelStartsResolved,
-      roomRow.nights,
-      sortedDates,
-    );
-    if (travelValidateErr) {
-      return NextResponse.json({ error: travelValidateErr }, { status: 400 });
-    }
-    travelStartsToPersist = [...new Set(travelStartsResolved)].sort((a, b) => a.localeCompare(b));
   }
 
   const { error: deleteError } = await supabase
@@ -212,16 +161,6 @@ export async function PUT(
 
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 });
-  }
-
-  const { error: deleteSegError } = await supabase
-    .from("travel_segment_starts")
-    .delete()
-    .eq("room_id", roomId)
-    .eq("participant_id", parsedParticipantId.data);
-
-  if (deleteSegError) {
-    return NextResponse.json({ error: deleteSegError.message }, { status: 500 });
   }
 
   if (entries.length > 0) {
@@ -236,20 +175,6 @@ export async function PUT(
 
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
-    }
-  }
-
-  if (travelStartsToPersist && travelStartsToPersist.length > 0) {
-    const { error: insertSegError } = await supabase.from("travel_segment_starts").insert(
-      travelStartsToPersist.map((start_date) => ({
-        room_id: roomId,
-        participant_id: parsedParticipantId.data,
-        start_date,
-      })),
-    );
-
-    if (insertSegError) {
-      return NextResponse.json({ error: insertSegError.message }, { status: 500 });
     }
   }
 

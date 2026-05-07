@@ -6,6 +6,8 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type RoomRealtimeListenerProps = {
   roomId: string;
+  /** full: RSC `router.refresh` + 결과 SWR용 이벤트 · light: 이벤트만(캘린더·중복 Realtime 방지) */
+  variant?: "full" | "light";
 };
 
 const DEBOUNCE_MS = 250;
@@ -18,8 +20,10 @@ const POLL_MS_SLOW = 45000;
  * `schedules` / `participants` 변경 시 서버 데이터를 다시 불러옵니다.
  * Supabase Realtime이 켜져 있으면 변경은 이벤트로 처리하고, 폴링은 느리게만 돕니다.
  * 탭이 안 보일 때는 폴링하지 않습니다.
+ *
+ * `variant=light`(캘린더): 전체 RSC 갱신 없이 `room-results-revalidate`만 보냅니다.
  */
-export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
+export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeListenerProps) {
   const router = useRouter();
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -37,7 +41,12 @@ export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
       }
       refreshTimerRef.current = setTimeout(() => {
         refreshTimerRef.current = undefined;
-        router.refresh();
+        window.dispatchEvent(
+          new CustomEvent("room-results-revalidate", { detail: { roomId } }),
+        );
+        if (variant !== "light") {
+          router.refresh();
+        }
       }, DEBOUNCE_MS);
     };
 
@@ -79,16 +88,6 @@ export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
         },
         scheduleRefresh,
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "travel_segment_starts",
-          filter: `room_id=eq.${roomId}`,
-        },
-        scheduleRefresh,
-      )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           setPollInterval(POLL_MS_SLOW);
@@ -114,7 +113,7 @@ export function RoomRealtimeListener({ roomId }: RoomRealtimeListenerProps) {
       window.removeEventListener("online", scheduleRefresh);
       void client.removeChannel(ch);
     };
-  }, [roomId, router]);
+  }, [roomId, router, variant]);
 
   return null;
 }

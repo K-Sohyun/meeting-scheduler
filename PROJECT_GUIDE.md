@@ -81,7 +81,8 @@
 ### API 라우트
 | 경로 | 설명 |
 |------|------|
-| `GET/PUT /api/rooms/[roomId]/schedules` | 본인 일정 조회/저장 (`participant` 쿠키). 여행 방 `GET`은 참고용 `travelStarts` 포함 가능 · `PUT`은 `entries`만 보내며 서버가 best 일정의 연속 구간마다 `nights+1` 창으로 전체 선택일을 덮는 모든 시작일을 추론해 `travel_segment_starts`에 저장 |
+| `GET/PUT /api/rooms/[roomId]/schedules` | 본인 일정 조회/저장 (`participant` 쿠키). 응답 본문은 `{ entries }`만 · 여행 방은 연속 `nights+1`일 이상인 **모두 best** 청크만 허용(서버 검증) |
+| `GET /api/rooms/[roomId]/results` | 결과 집계 전용 API. 참여자 수·닉네임 맵·날짜 랭킹·응답 수·여행 시 공통 n박 후보(`travelOverlapRanges`)·개인 연속 구간(`travelSoloSegments`)을 서버에서 계산해 반환 |
 | `POST /api/rooms/[roomId]/unlock` | 방 비밀번호 검증 후 잠금 쿠키 발급 |
 | `POST /api/rooms/[roomId]/manage` | 방장 액션 (`close`/`fix`/`clear_fix`/`delete_room`) |
 | `GET /api/holidays` | 공휴일 프록시 API |
@@ -127,20 +128,19 @@
 - **여행 모임(travel)**:
   - `nights = N`이면 연속 `N+1`일 구간 선택
   - 저장 상태는 해당 구간 전부 `best`
-  - **여행 구간 시작일**은 저장 시 서버가 best 일정의 **날짜 공백으로 끊긴 연속 구간**마다, `N+1`일 창으로 전체 선택일을 덮는 **가능한 시작일 전부**를 추론해 `travel_segment_starts`에 기록(캘린더 UI는 수정 전과 동일, 보더 없음)
   - 이미 선택된 구간의 **캘린더상 첫날**(전날이 비어 있음)을 다시 누르면 구간 해제
   - 구간 내부 날짜를 누르면 해당 날짜를 새 시작일로 재지정
 - **결과 표시** (`RoomDateResults`, `lib/schedule-results.ts`, `lib/travel-recommendation.ts`):
+  - `scheduleRowCount === 0`: 「아직 응답이 없어요. … 표시됩니다.」(일반·여행 공통)
+  - 상단 한 줄 안내: **일반**만 「모이기 좋은 날부터 순서대로…」·**여행**은 제목·「모두 가능」「개인 선호」소제목만으로 충분해 별도 문단 없음
   - `buildDateResults`: 일정이 한 번이라도 있는 참가자 id만 모수(응답자 기준). 날짜별 `canParticipantIds`로 `가능한 사람` 표시
-  - `canCount > 0`만 노출 · 기본 상세 최대 **3**줄 · `view=calendar` **6**줄 (`page.tsx`의 `maxRows`)
+  - 일반(single): `canCount > 0`만 노출 · 기본 상세 최대 **3**줄 · `view=calendar` **6**줄 (`page.tsx`의 `maxRows`)
   - 일반: `선호`/`가능` 숫자 강조, 닉네임 목록(긴 이름 줄바꿈)
-  - **여행** (`buildTravelRecommendationRanges`): `ranked` 일자 범위에서 `nights+1`일 창을 검사하되, **시작일**은 응답 참가자별 `travel_segment_starts`(없으면 best 일정 연속 덩어리에서 위와 같이 추론한 시작일들)의 **합집합**에 들어가는 날만 후보로 삼음 (`lib/travel-segment-starts.ts`)
-    - 창마다 일별 `canParticipantIds` **교집합**; 비면 제외
-    - 동일 참가자 집합: 구간이 겹치면 연결 요소로 묶고, 묶음 안에서 `nights+1`일 간격 대표 창만 유지 (예: 1~12 + 3박4일 → 1~4, 5~8, 9~12)
-      - 이때 대표 시작일의 “기준점(base)”은 여러 후보 중에서 고르며, 우선 `nights+1` 블록 개수를 가장 많이 보존하는 방향(예: 14~21이면 14~17, 18~21)으로 선택하고, 동률일 때만 **더 많은 인원의 추천 구간(상위 교집합 창)** 과의 겹침을 줄이는 쪽을 택함
-    - 추천 구간(교집합 인원 더 많은 창)이 중간에 있으면, 해당 참가자 집합의 창으로 **별도 줄**에 함께 노출
-    - 정렬: 교집합 인원 **내림차순** → 시작일 **오름차순**
-    - **추천**: 교집합 **2명 이상**이면서 창 안 **매일** `perfectMatch`(그날 응답자 전원 best/ok). 1명만이면 **보통**
+  - **여행**은 `schedules`만 사용:
+    - **모두 가능 (n박)** (`buildTravelOverlapNightRanges`, UI 부가 설명: 「N박 단위 또는, 연속으로 겹치는 전체 기간이 표시됩니다.」): 응답 참가자 **전원**이 그날 모두 가능한 날만 골라 연속 구간(run)으로 나눈다(응답자 2명 미만이면 비움). **응답자 전원의 `best`가 날짜 공백 없이 한 덩어리**이면 각 공통 run을 **`nights+1`보다 길어도 시작~끝 전체 한 줄**. **누구라도 `best`가 둘 이상의 연속 덩어리**면 각 run 안에서 `nights+1`일 창 슬라이딩 후, **같은 참가자·같은 추천 여부**이고 **시작일이 하루씩만 밀린** 줄들은 **병합**해 전체 가능 기간 한 줄(예: 4~6, 5~7, … → 4~9). 공통 run이 끊기면 병합도 run 경계에서 끊김. 후보가 없어도 **제목·위 설명** 유지·빈 때 「아직 모두 가능한 날짜가 없어요.」. 줄마다 **추천**/**참고** 배지(`perfectMatch`)·**가능한 사람**만 표시(여행은 전원 선호라 카드에 `선호 N` 숫자 줄 없음).
+  - 일반(single) 배지: `respondedCount >= 2 && perfectMatch`일 때만 **추천**, 그 외는 **참고**(1인 응답 초기 과추천 방지)
+    - **개인 선호** (`buildTravelSoloSegments`, 부가 문구: 「모두 가능한 날이 없다면? 참가자별 선호 일정을 확인해 보세요.」): 참가자별 `best` 일정을 날짜 공백으로 끊긴 연속 구간마다 **시작~끝 전체** 한 줄 · UI에서 **같은 구간**은 한 카드로 묶어 `가능한 사람: 닉네임, 닉네임`. **화면에 표시 중인 「모두 가능」 줄**과 시작·종료일이 문자열로 완전히 같으면 개인 선호 목록에서 빼서 중복 노출 방지(한쪽이 다른 쪽에 **포함**만 되는 경우는 그대로 둠). **전부 표시**(스크롤 영역 안, `maxRows`는 모두 가능에만).
+    - `maxRows`(`view=calendar` 등): **모두 가능** 블록만 최대 N줄로 제한 · **개인 선호**는 줄 수 제한 없음
 
 마감 후에는 일정 `PUT`이 403으로 막히고, 방장만 관리 액션 가능.
 
@@ -159,9 +159,6 @@
 `room_id`, `participant_id`, `date(YYYY-MM-DD)`, `status(best|ok)`  
 `UNIQUE(participant_id, date)`
 
-### `travel_segment_starts`
-여행 방 참가자가 저장한 **구간 시작일**(ISO 날짜). `room_id`, `participant_id`, `start_date(date)` · `UNIQUE(participant_id, start_date)` · 방/참가자 삭제 시 `ON DELETE CASCADE`
-
 ### 필요한 SQL (직접 실행)
 `rooms.creator_claim_token` 컬럼이 없으면 아래를 Supabase SQL Editor에서 실행합니다.
 
@@ -173,59 +170,27 @@ COMMENT ON COLUMN rooms.creator_claim_token IS
   'join 시 개설자 쿠키와 일치할 때만 owner_participant_id 선점(자동 1인 방장은 없음)';
 ```
 
-`travel_segment_starts` 테이블이 없으면 생성합니다.
-
-```sql
-CREATE TABLE IF NOT EXISTS travel_segment_starts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_id uuid NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-  participant_id uuid NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
-  start_date date NOT NULL,
-  UNIQUE(participant_id, start_date)
-);
-
-CREATE INDEX IF NOT EXISTS idx_travel_segment_starts_room
-  ON travel_segment_starts(room_id);
-```
-
-**RLS**가 켜져 있으면 `travel_segment_starts`에도 정책이 없으면 `new row violates row-level security policy`가 납니다. 앱은 **anon 키**로 서버에서 쓰므로, `schedules`와 비슷하게 열어두는 예시는 아래와 같습니다. (`schedules`가 더 엄격하면 Dashboard에서 그 정책 조건을 복사해 맞추면 됩니다.)
-
-```sql
-ALTER TABLE public.travel_segment_starts ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "travel_segment_starts_all" ON public.travel_segment_starts;
-
-CREATE POLICY "travel_segment_starts_all"
-ON public.travel_segment_starts
-FOR ALL
-TO public
-USING (true)
-WITH CHECK (true);
-```
-
-테이블 생성 직후 **anon**에게 테이블 권한이 없다면(에러 메시지가 permission denied일 때):
-
-```sql
-GRANT SELECT, INSERT, DELETE ON public.travel_segment_starts TO anon;
-GRANT SELECT, INSERT, DELETE ON public.travel_segment_starts TO authenticated;
-```
-
 ---
 
 ## 9. Realtime
 
-`RoomRealtimeListener`: `schedules`·`participants`·`travel_segment_starts` **postgres_changes** → **250ms** 디바운스 후 `router.refresh()`.  
+`RoomRealtimeListener`(항상 마운트): `schedules`·`participants` **postgres_changes** → **250ms** 디바운스 후  
+항상 `room-results-revalidate` 이벤트로 SWR(`/results`) 재검증을 트리거합니다.
+- **상세 화면**(`variant=full`): 추가로 `router.refresh()`로 참여자 목록 등 RSC 갱신
+- **캘린더**(`view=calendar`, `variant=light`): 위 이벤트만 — 전체 RSC 갱신 없음
+
 폴링은 탭이 보일 때만: 구독 성공(`SUBSCRIBED`) 전까지 **15초**, 이후 **45초** · `CHANNEL_ERROR`/`TIMED_OUT`이면 다시 15초로(이벤트가 주 갱신).
+
+`RoomResultsLive`·`RoomLiveCounts`는 Supabase 채널을 따로 열지 않고, 위 이벤트·저장 시 발행과 동일한 흐름으로 `/results`만 재검증합니다.
 
 Supabase에서 아래를 확인합니다.
 
-- Dashboard → **Database → Tables** → `schedules`, `participants`, `travel_segment_starts`에서 **Realtime** 활성화  
+- Dashboard → **Database → Tables** → `schedules`, `participants`에서 **Realtime** 활성화  
 - 또는 SQL Editor에서 **publication**에 테이블이 포함돼 있는지 확인 (프로젝트 설정에 따라 예시):
 
 ```sql
 alter publication supabase_realtime add table public.schedules;
 alter publication supabase_realtime add table public.participants;
-alter publication supabase_realtime add table public.travel_segment_starts;
 ```
 
 `app/rooms/[roomId]/page.tsx`: `dynamic = "force-dynamic"` — 방 상세·추천 RSC 캐시 고정 방지.
@@ -250,8 +215,9 @@ alter publication supabase_realtime add table public.travel_segment_starts;
 | `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/생성·삭제 토스트) |
 | `app/rooms/RoomsActionToast.tsx` | `/rooms` 생성·삭제 완료 토스트 + 쿼리 정리 |
 | `app/rooms/[roomId]/page.tsx` | 방 상세 조합 |
-| `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더(저장 성공 시 `router.refresh` 즉시 + ~220ms 후 1회) |
-| `app/rooms/[roomId]/RoomRealtimeListener.tsx` | Supabase Realtime + 보조 폴링·디바운스 갱신 |
+| `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더(저장 성공 시 `room-results-revalidate` 이벤트 발행으로 SWR 결과 키 재검증 트리거) |
+| `app/rooms/[roomId]/RoomResultsLive.tsx` / `RoomLiveCounts.tsx` | `/results` SWR 구독·`room-results-revalidate` 수신으로 부분 갱신 |
+| `app/rooms/[roomId]/RoomRealtimeListener.tsx` | 방당 Realtime 채널 1개 + 폴링·디바운스(`full`/`light`) |
 | `app/rooms/[roomId]/RoomDateResults.tsx` | 추천 결과 UI |
 | `app/rooms/[roomId]/DeleteRoomForm.tsx` | 방 삭제 확인 |
 | `app/api/rooms/[roomId]/manage/route.ts` | 방장 액션 API |
@@ -260,7 +226,7 @@ alter publication supabase_realtime add table public.travel_segment_starts;
 | `components/ui/InlineMessage.tsx` | 성공/안내/에러 공통 배너 |
 | `components/ui/ToastPopup.tsx` | 완료 피드백 공통 토스트 |
 | `lib/room-creator.ts` / `participant-session.ts` / `room-unlock.ts` | 쿠키 키 유틸 |
-| `lib/schedule-validate.ts` / `schedule-results.ts` / `travel-recommendation.ts` / `travel-segment-starts.ts` / `nickname.ts` | 도메인 로직 |
+| `lib/schedule-validate.ts` / `schedule-results.ts` / `travel-recommendation.ts` / `availability-utils.ts` / `room-results.ts` / `nickname.ts` | 도메인 로직 |
 | `lib/supabase/server.ts`, `lib/supabase/client.ts` | Supabase 클라이언트 |
 
 ---
@@ -270,7 +236,7 @@ alter publication supabase_realtime add table public.travel_segment_starts;
 1. `rooms.creator_claim_token` 포함 필수 컬럼이 모두 있는지
 2. `participants` 닉네임 유니크 정책(정규화 기준) 적용 여부
 3. RLS 사용 시 anon 권한이 앱 동작(`join`, `schedules`, `manage`)과 맞는지
-4. `schedules`, `participants`, `travel_segment_starts` Realtime·RLS 여부
+4. `schedules`, `participants` Realtime·RLS 여부
 5. `/rooms` 목록에서 `password_hash` 조회 정책 허용 여부(🔒 표시용)
 
 ---

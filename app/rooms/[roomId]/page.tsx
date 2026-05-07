@@ -3,14 +3,14 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { getHolidaysInRange } from "@/lib/holidays";
 import { getParticipantCookieName } from "@/lib/participant-session";
+import { computeRoomResultsBundle } from "@/lib/room-results";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
-import { buildDateResults, type ScheduleRow } from "@/lib/schedule-results";
-import { buildTravelRecommendationRanges } from "@/lib/travel-recommendation";
-import { buildTravelAllowedStartUnion } from "@/lib/travel-segment-starts";
+import type { ScheduleRow } from "@/lib/schedule-results";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { JoinForm } from "./JoinForm";
-import { RoomDateResults } from "./RoomDateResults";
+import { RoomResultsLive } from "./RoomResultsLive";
+import { RoomLiveCounts } from "./RoomLiveCounts";
 import { RoomPasswordForm } from "./RoomPasswordForm";
 import { RoomRealtimeListener } from "./RoomRealtimeListener";
 import { ScheduleCalendar } from "./ScheduleCalendar";
@@ -20,18 +20,6 @@ const roomIdSchema = z.string().uuid();
 
 /** 일정·추천이 항상 DB 최신을 반영하도록(캐시된 RSC 페이로드 방지) */
 export const dynamic = "force-dynamic";
-
-function buildTravelFixRanges(
-  ranked: ReturnType<typeof buildDateResults>,
-  nights: number,
-  allowedStarts: Set<string>,
-) {
-  return buildTravelRecommendationRanges(ranked, nights, allowedStarts).map((r) => ({
-    startDate: r.startDate,
-    endDate: r.endDate,
-    canCount: r.canCount,
-  }));
-}
 
 export default async function RoomPage({
   params,
@@ -174,48 +162,31 @@ export default async function RoomPage({
   }
 
   const participantIds = (participants ?? []).map((p) => p.id);
-  let resultRanked: ReturnType<typeof buildDateResults> = [];
-  let scheduleRowCount = 0;
+  let resultRanked: ReturnType<typeof computeRoomResultsBundle>["ranked"] = [];
   let respondedParticipantCount = 0;
   let schedulesTyped: ScheduleRow[] = [];
-  let respondedParticipantIds: string[] = [];
   if (participantIds.length > 0) {
     const { data: allSchedules } = await supabase
       .from("schedules")
       .select("participant_id, date, status")
       .eq("room_id", room.id);
     schedulesTyped = (allSchedules ?? []) as ScheduleRow[];
-    scheduleRowCount = schedulesTyped.length;
-    respondedParticipantIds = [...new Set(schedulesTyped.map((row) => row.participant_id))];
-    respondedParticipantCount = respondedParticipantIds.length;
-    resultRanked = buildDateResults({
-      dateRangeStart: room.date_range_start,
-      dateRangeEnd: room.date_range_end,
-      participantIds: respondedParticipantIds,
-      expectedParticipantCount: room.expected_participant_count ?? 0,
-      schedules: schedulesTyped,
-    });
   }
 
-  let travelSegRows: { participant_id: string; start_date: string }[] = [];
-  if (room.type === "travel" && participantIds.length > 0) {
-    const { data: seg } = await supabase
-      .from("travel_segment_starts")
-      .select("participant_id, start_date")
-      .eq("room_id", room.id);
-    travelSegRows = (seg ?? []) as { participant_id: string; start_date: string }[];
-  }
-
-  const travelAllowedStartUnion =
-    room.type === "travel" && respondedParticipantIds.length > 0 && room.nights != null
-      ? buildTravelAllowedStartUnion({
-          respondedParticipantIds,
-          segmentRows: travelSegRows,
-          schedules: schedulesTyped,
-          nights: room.nights,
-        })
-      : new Set<string>();
-  const travelAllowedStartsSorted = [...travelAllowedStartUnion].sort((a, b) => a.localeCompare(b));
+  const results = computeRoomResultsBundle({
+    room: {
+      id: room.id,
+      type: room.type === "travel" ? "travel" : "single",
+      nights: room.nights,
+      date_range_start: room.date_range_start,
+      date_range_end: room.date_range_end,
+      expected_participant_count: room.expected_participant_count,
+    },
+    participants: (participants ?? []).map((p) => ({ id: p.id, nickname: p.nickname })),
+    schedules: schedulesTyped,
+  });
+  resultRanked = results.ranked;
+  respondedParticipantCount = results.respondedParticipantCount;
 
   const expectedCount = room.expected_participant_count ?? 0;
   const canClose =
@@ -225,10 +196,7 @@ export default async function RoomPage({
     (participants?.length ?? 0) >= expectedCount &&
     respondedParticipantCount >= expectedCount;
   const showOwnerManage = isOwner;
-  const travelFixRanges =
-    room.type === "travel" && room.nights != null
-      ? buildTravelFixRanges(resultRanked, room.nights, travelAllowedStartUnion)
-      : [];
+  const travelFixRanges = results.travelFixRanges;
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col px-5 pb-6 pt-8">
@@ -285,12 +253,14 @@ export default async function RoomPage({
             ? ` (${room.nights}박 ${room.nights + 1}일)`
             : ""}
         </p>
-        <p className="mt-1 text-sm text-app-muted">
-          예상 인원: {expectedCount}명 / 참여: {participants?.length ?? 0}명 / 응답:{" "}
-          {respondedParticipantCount}명
-        </p>
+        <RoomLiveCounts
+          roomId={room.id}
+          expectedCount={expectedCount}
+          initialParticipantCount={participants?.length ?? 0}
+          initialRespondedCount={respondedParticipantCount}
+        />
         {room.password_hash ? (
-          <p className="mt-1 text-xs text-app-muted">비밀번호가 설정된 방입니다.</p>
+          <p className="mt-1 text-xs text-app-muted">(비밀번호가 설정된 방입니다.)</p>
         ) : null}
         {room.is_closed ? (
           <InlineMessage tone="neutral" className="mt-2">
@@ -407,16 +377,12 @@ export default async function RoomPage({
                 holidays={holidays}
                 readOnly={room.is_closed}
               />
-              <RoomDateResults
-                ranked={resultRanked}
-                participantCount={participants?.length ?? 0}
-                respondedCount={respondedParticipantCount}
-                participantNameById={participantNameById}
+              <RoomResultsLive
+                roomId={room.id}
+                initial={results}
                 expectedCount={expectedCount}
                 roomType={room.type === "travel" ? "travel" : "single"}
                 nights={room.nights}
-                scheduleRowCount={scheduleRowCount}
-                travelAllowedStarts={travelAllowedStartsSorted}
                 maxRows={6}
               />
             </>
@@ -513,16 +479,12 @@ export default async function RoomPage({
               </button>
             )}
           </section>
-          <RoomDateResults
-            ranked={resultRanked}
-            participantCount={participants?.length ?? 0}
-            respondedCount={respondedParticipantCount}
-            participantNameById={participantNameById}
+          <RoomResultsLive
+            roomId={room.id}
+            initial={results}
             expectedCount={expectedCount}
             roomType={room.type === "travel" ? "travel" : "single"}
             nights={room.nights}
-            scheduleRowCount={scheduleRowCount}
-            travelAllowedStarts={travelAllowedStartsSorted}
             maxRows={3}
           />
         </>
@@ -542,7 +504,7 @@ export default async function RoomPage({
           방 리스트
         </Link>
       </div>
-      <RoomRealtimeListener roomId={room.id} />
+      <RoomRealtimeListener roomId={room.id} variant={isCalendarView ? "light" : "full"} />
     </main>
   );
 }

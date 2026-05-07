@@ -1,4 +1,5 @@
 import { eachDayOfInterval, format, parseISO } from "date-fns";
+import { getAvailableParticipantsByDate } from "@/lib/availability-utils";
 
 export type ScheduleRow = {
   participant_id: string;
@@ -58,23 +59,12 @@ export function buildDateResults(params: {
 
   for (const d of days) {
     const dateKey = format(d, "yyyy-MM-dd");
-    const m = byDateParticipant.get(dateKey) ?? new Map();
-    let bestCount = 0;
-    let okCount = 0;
-    let withResponse = 0;
-    const canParticipantIds: string[] = [];
-    for (const pid of participantIds) {
-      const st = m.get(pid);
-      if (st === "best") {
-        bestCount += 1;
-        withResponse += 1;
-        canParticipantIds.push(pid);
-      } else if (st === "ok") {
-        okCount += 1;
-        withResponse += 1;
-        canParticipantIds.push(pid);
-      }
-    }
+    const { canParticipantIds, bestCount, okCount } = getAvailableParticipantsByDate({
+      participantIds,
+      byDateParticipant,
+      date: dateKey,
+    });
+    const withResponse = canParticipantIds.length;
     const canCount = bestCount + okCount;
     const score = bestCount * 2 + okCount * 1;
     const stragglerCount = n - withResponse;

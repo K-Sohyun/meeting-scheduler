@@ -17,7 +17,6 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ToastPopup } from "@/components/ui/ToastPopup";
@@ -146,7 +145,6 @@ export function ScheduleCalendar({
   holidays,
   readOnly,
 }: ScheduleCalendarProps) {
-  const router = useRouter();
   const [schedules, setSchedules] = useState<ScheduleMap>({});
   const [savedSchedules, setSavedSchedules] = useState<ScheduleMap>({});
   const [message, setMessage] = useState("");
@@ -260,10 +258,7 @@ export function ScheduleCalendar({
     setSavedSchedules(nextSchedules);
     showMessage("일정이 저장되었습니다.", "success");
     setToastMessage("일정이 저장되었습니다.");
-    router.refresh();
-    window.setTimeout(() => {
-      router.refresh();
-    }, 220);
+    window.dispatchEvent(new CustomEvent("room-results-revalidate", { detail: { roomId: room.id } }));
   }
 
   function onDateClick(date: string) {
@@ -348,12 +343,12 @@ export function ScheduleCalendar({
       <h2 className="text-base font-semibold">날짜 선택</h2>
       {room.type === "travel" ? (
         <p className="mt-1 text-sm text-app-muted">
-          {participant.nickname}님의 캘린더입니다. <br />
+          <b>{participant.nickname}</b>님의 캘린더입니다. <br />
           시작일 클릭 시 {room.nights ?? 0}박 {(room.nights ?? 0) + 1}일이 자동으로 선호로 선택됩니다.
         </p>
       ) : (
         <p className="mt-1 text-sm text-app-muted">
-          {participant.nickname}님의 캘린더입니다. <br />
+          <b>{participant.nickname}</b>님의 캘린더입니다. <br />
           날짜를 클릭하면 불가능(기본) → 가능 → 선호 순으로 변경됩니다.
         </p>
       )}
