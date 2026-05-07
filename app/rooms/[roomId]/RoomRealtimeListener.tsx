@@ -8,13 +8,15 @@ type RoomRealtimeListenerProps = {
   roomId: string;
   /** full: RSC `router.refresh` + 결과 SWR용 이벤트 · light: 이벤트만(캘린더·중복 Realtime 방지) */
   variant?: "full" | "light";
+  /** light 변형에서도 필요한 경우 RSC를 즉시 갱신(예: 방장의 모집 마감 버튼 노출) */
+  refreshOnLight?: boolean;
 };
 
 const DEBOUNCE_MS = 250;
-/** Realtime 연결 전·실패 시에만 자주 물어봄 (분당 ~4회) */
-const POLL_MS_FAST = 15000;
-/** Realtime이 붙은 뒤는 이벤트가 주력이므로 안전망만 길게 (분당 ~1.3회) */
-const POLL_MS_SLOW = 45000;
+/** Realtime 연결 전·실패 시에만 물어봄 (분당 ~2회) */
+const POLL_MS_FAST = 30000;
+/** Realtime이 붙은 뒤는 이벤트가 주력이므로 안전망만 매우 길게 (분당 ~0.7회) */
+const POLL_MS_SLOW = 90000;
 
 /**
  * `schedules` / `participants` 변경 시 서버 데이터를 다시 불러옵니다.
@@ -23,7 +25,11 @@ const POLL_MS_SLOW = 45000;
  *
  * `variant=light`(캘린더): 전체 RSC 갱신 없이 `room-results-revalidate`만 보냅니다.
  */
-export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeListenerProps) {
+export function RoomRealtimeListener({
+  roomId,
+  variant = "full",
+  refreshOnLight = false,
+}: RoomRealtimeListenerProps) {
   const router = useRouter();
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -35,7 +41,7 @@ export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeL
       return;
     }
 
-    const scheduleRefresh = () => {
+    const scheduleRefresh = (forceRscRefresh = false) => {
       if (refreshTimerRef.current !== undefined) {
         clearTimeout(refreshTimerRef.current);
       }
@@ -44,7 +50,7 @@ export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeL
         window.dispatchEvent(
           new CustomEvent("room-results-revalidate", { detail: { roomId } }),
         );
-        if (variant !== "light") {
+        if (variant !== "light" || refreshOnLight || forceRscRefresh) {
           router.refresh();
         }
       }, DEBOUNCE_MS);
@@ -55,6 +61,7 @@ export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeL
         scheduleRefresh();
       }
     };
+    const onOnline = () => scheduleRefresh();
 
     let pollId: number | undefined;
     const setPollInterval = (ms: number) => {
@@ -75,8 +82,13 @@ export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeL
       .channel(`room-${roomId}-updates`)
       .on(
         "postgres_changes",
+        { event: "*", schema: "public", table: "rooms", filter: `id=eq.${roomId}` },
+        () => scheduleRefresh(true),
+      )
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "schedules", filter: `room_id=eq.${roomId}` },
-        scheduleRefresh,
+        () => scheduleRefresh(false),
       )
       .on(
         "postgres_changes",
@@ -86,7 +98,7 @@ export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeL
           table: "participants",
           filter: `room_id=eq.${roomId}`,
         },
-        scheduleRefresh,
+        () => scheduleRefresh(false),
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -100,7 +112,7 @@ export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeL
       });
 
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", scheduleRefresh);
+    window.addEventListener("online", onOnline);
 
     return () => {
       if (refreshTimerRef.current !== undefined) {
@@ -110,10 +122,10 @@ export function RoomRealtimeListener({ roomId, variant = "full" }: RoomRealtimeL
         window.clearInterval(pollId);
       }
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", scheduleRefresh);
+      window.removeEventListener("online", onOnline);
       void client.removeChannel(ch);
     };
-  }, [roomId, router, variant]);
+  }, [refreshOnLight, roomId, router, variant]);
 
   return null;
 }

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RoomsActionToast } from "./RoomsActionToast";
+import { RoomsListLive } from "./RoomsListLive";
+import { RoomsRealtimeListener } from "./RoomsRealtimeListener";
 
 export default async function RoomsPage({
   searchParams,
@@ -41,51 +43,9 @@ export default async function RoomsPage({
         </p>
       </header>
       <RoomsActionToast deleted={deleted === "1"} createdRoomId={created} />
+      <RoomsRealtimeListener />
 
-      <section className="mt-5 rounded-2xl bg-app-card p-5 shadow-sm">
-        <div
-          className="grid max-h-[min(60dvh,26rem)] gap-3 overflow-y-auto overscroll-y-contain"
-          role="region"
-          aria-label="방 목록"
-        >
-          {rooms && rooms.length > 0 ? (
-            rooms.map((room) => {
-              // 완료 기준: 모집 마감 + 확정 일정 존재
-              // (확정 해제 시 다시 일반 상태로 돌아감)
-              const isCompleted = Boolean(room.is_closed && room.fixed_start_date);
-              return (
-                <Link
-                  key={room.id}
-                  href={`/rooms/${room.id}`}
-                  className={`rounded-xl border px-3 py-3 ${
-                    isCompleted ? "border-zinc-200 bg-zinc-100" : "border-violet-100 bg-white"
-                  }`}
-                >
-                  <p className="flex items-center text-sm text-app-muted">
-                    {room.type === "travel" ? "여행 모임" : "일반 모임"}
-                    {room.password_hash ? (
-                      <span
-                        aria-label="비밀번호가 설정된 방"
-                        className="select-none text-xs"
-                        title="비밀번호가 설정된 방"
-                      >
-                        🔒
-                      </span>
-                    ) : null}
-                  </p>
-                  <h2 className="mt-1 text-base font-semibold">{room.name}</h2>
-                  <p className="mt-1 text-xs text-app-muted">
-                    {room.date_range_start} ~ {room.date_range_end}
-                  </p>
-                  {isCompleted ? <p className="mt-1 text-xs text-zinc-600">일정이 확정된 방</p> : null}
-                </Link>
-              );
-            })
-          ) : (
-            <p className="text-sm text-app-muted">아직 생성된 방이 없습니다.</p>
-          )}
-        </div>
-      </section>
+      <RoomsListLive initialRooms={rooms ?? []} />
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Link

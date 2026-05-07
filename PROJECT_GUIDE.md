@@ -22,7 +22,7 @@
 - 모바일 우선: `max-w-[480px]`, `min-h-dvh` · 상단 pill 내비(`홈` / `방 리스트`) · 라우트 전환 시 `app/loading.tsx`
 - 피드백: 성공(초록) / 안내·정보(보라) / 에러(빨강) / 중립(회색). 완료형(방 생성·삭제·캘린더 저장)은 하단 토스트, 캘린더 저장은 초록 배너 + 토스트, 확정 일정은 상단 초록 안내
 - 제출(방 생성·참여): 진행 중 비활성 + 스피너
-- 방 목록·상세: 비밀번호 방은 유형 옆 `🔒` · 목록 `max-h-[min(60dvh,26rem)] overflow-y-auto` · 마감+픽스된 방은 회색 `일정이 확정된 방` · 삭제 후 `/rooms?deleted=1` 토스트 1회 후 쿼리 제거
+- 방 목록·상세: 비밀번호 방은 유형 옆 `🔒` · 목록 `max-h-[min(60dvh,26rem)] overflow-y-auto` · 마감+픽스된 방은 회색 `일정이 확정된 방` · 하단에 `일반 모임 생성`/`여행 모임 생성` 버튼 2개 노출 · 삭제 후 `/rooms?deleted=1` 토스트 1회 후 쿼리 제거
 - 마감 후 캘린더 읽기 전용 문구는 회색 중립 톤
 
 ---
@@ -64,7 +64,7 @@
 |------|------|
 | `/` | 랜딩 |
 | `/rooms/new` | 방 생성 폼 (`single` / `travel`) |
-| `/rooms` | 방 목록 (`created`, `deleted=1` 완료 토스트 1회 노출 후 쿼리 정리) |
+| `/rooms` | 방 목록 (`created`, `deleted=1` 완료 토스트 1회 노출 후 쿼리 정리, `rooms` Realtime으로 목록 자동 갱신) |
 | `/rooms/[roomId]` | 방 상세 (참여, 참여자, 추천, 방장 관리, `view=calendar`) |
 | `POST /rooms/new/create` | 방 생성 + `creator_claim_token` 저장 + 개설자 쿠키 발급 |
 | `POST /rooms/[roomId]/join` | 참여 처리 + 참가 쿠키. `Accept`에 `application/json` 포함 시 `200` + `{ ok, redirect }`·`Set-Cookie` 후 클라이언트가 `redirect`로 이동 |
@@ -83,11 +83,12 @@
 |------|------|
 | `GET/PUT /api/rooms/[roomId]/schedules` | 본인 일정 조회/저장 (`participant` 쿠키). 응답 본문은 `{ entries }`만 · 여행 방은 연속 `nights+1`일 이상인 **모두 best** 청크만 허용(서버 검증) |
 | `GET /api/rooms/[roomId]/results` | 결과 집계 전용 API. 참여자 수·닉네임 맵·날짜 랭킹·응답 수·여행 시 공통 n박 후보(`travelOverlapRanges`)·개인 연속 구간(`travelSoloSegments`)을 서버에서 계산해 반환 |
+| `GET /api/rooms/list` | 방 목록 30개 조회(클라이언트 SWR 재검증용) |
 | `POST /api/rooms/[roomId]/unlock` | 방 비밀번호 검증 후 잠금 쿠키 발급 |
 | `POST /api/rooms/[roomId]/manage` | 방장 액션 (`close`/`fix`/`clear_fix`/`delete_room`) |
 | `GET /api/holidays` | 공휴일 프록시 API |
 
-`delete_room` 처리 순서: `schedules` 삭제 → `owner_participant_id` null → `participants` 삭제 → `rooms` 삭제 → `/rooms?deleted=1` 리다이렉트 + 쿠키 제거
+`delete_room` 처리 순서: `schedules` 삭제 → `owner_participant_id` null → `participants` 삭제 → `rooms` 삭제 → `/rooms?deleted=1` 리다이렉트 + 참가/개설자/잠금 쿠키 제거
 
 ---
 
@@ -174,12 +175,15 @@ COMMENT ON COLUMN rooms.creator_claim_token IS
 
 ## 9. Realtime
 
-`RoomRealtimeListener`(항상 마운트): `schedules`·`participants` **postgres_changes** → **250ms** 디바운스 후  
+`RoomRealtimeListener`(항상 마운트): `rooms(id=roomId)`·`schedules`·`participants` **postgres_changes** → **250ms** 디바운스 후  
 항상 `room-results-revalidate` 이벤트로 SWR(`/results`) 재검증을 트리거합니다.
 - **상세 화면**(`variant=full`): 추가로 `router.refresh()`로 참여자 목록 등 RSC 갱신
-- **캘린더**(`view=calendar`, `variant=light`): 위 이벤트만 — 전체 RSC 갱신 없음
+- **캘린더**(`view=calendar`, `variant=light`): 기본은 위 이벤트만(전체 RSC 갱신 없음). 단, **방장 + 미마감** 상태(`refreshOnLight`)이거나 `rooms` 테이블 변경 이벤트(모집 마감/삭제/픽스) 수신 시에는 `router.refresh()`를 함께 호출해 서버 상태 분기를 즉시 반영
 
-폴링은 탭이 보일 때만: 구독 성공(`SUBSCRIBED`) 전까지 **15초**, 이후 **45초** · `CHANNEL_ERROR`/`TIMED_OUT`이면 다시 15초로(이벤트가 주 갱신).
+`RoomsRealtimeListener`(`/rooms` 전용): `rooms` **postgres_changes** 구독 + 동일 디바운스/가시 탭 폴링 정책으로 `rooms-list-revalidate` 이벤트를 발행합니다.  
+`RoomsListLive`가 이 이벤트를 받아 `/api/rooms/list` SWR `mutate()`만 수행하므로, 목록 영역만 갱신되고 전체 `router.refresh()` 호출을 줄입니다.
+
+폴링은 탭이 보일 때만: 구독 성공(`SUBSCRIBED`) 전까지 **30초**, 이후 **90초** · `CHANNEL_ERROR`/`TIMED_OUT`이면 다시 30초로(이벤트가 주 갱신).
 
 `RoomResultsLive`·`RoomLiveCounts`는 Supabase 채널을 따로 열지 않고, 위 이벤트·저장 시 발행과 동일한 흐름으로 `/results`만 재검증합니다.
 
@@ -212,7 +216,9 @@ alter publication supabase_realtime add table public.participants;
 | `app/rooms/new/create/route.ts` | 방 생성 + 개설자 토큰/쿠키 |
 | `app/rooms/new/CreateRoomForm.tsx` | 방 생성 폼(제출 중 스피너) |
 | `app/rooms/[roomId]/join/route.ts` | 참여 처리 + owner 할당 규칙 |
-| `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/생성·삭제 토스트) |
+| `app/rooms/page.tsx` | 방 목록(🔒/완료 회색/생성·삭제 토스트 + Realtime/SWR 조합 마운트) |
+| `app/rooms/RoomsListLive.tsx` | `/api/rooms/list` SWR 구독 + 이벤트 기반 목록 부분 갱신 |
+| `app/rooms/RoomsRealtimeListener.tsx` | `/rooms` 목록용 Realtime 채널 + 폴링·디바운스 |
 | `app/rooms/RoomsActionToast.tsx` | `/rooms` 생성·삭제 완료 토스트 + 쿼리 정리 |
 | `app/rooms/[roomId]/page.tsx` | 방 상세 조합 |
 | `app/rooms/[roomId]/ScheduleCalendar.tsx` | 캘린더(저장 성공 시 `room-results-revalidate` 이벤트 발행으로 SWR 결과 키 재검증 트리거) |

@@ -2,6 +2,7 @@ import { addDays, isBefore, parseISO } from "date-fns";
 import { NextResponse } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
+import { ERROR_MESSAGES } from "@/lib/error-messages";
 import { getRoomCreatorCookieName } from "@/lib/room-creator";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -141,20 +142,11 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24 * 30,
     });
     return res;
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : typeof error === "object" &&
-            error !== null &&
-            "message" in error &&
-            typeof error.message === "string"
-          ? error.message
-          : `알 수 없는 오류가 발생했어요. (${JSON.stringify(error)})`;
+  } catch {
     return NextResponse.redirect(
       buildRedirectUrl(request, {
         type: roomType,
-        error: `방 생성 실패: ${message}`,
+        error: ERROR_MESSAGES.roomCreate.failed,
       }),
       303,
     );

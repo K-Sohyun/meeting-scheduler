@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { ERROR_MESSAGES } from "@/lib/error-messages";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -27,7 +28,7 @@ export async function POST(
 ) {
   const roomParams = paramSchema.safeParse(await context.params);
   if (!roomParams.success) {
-    return NextResponse.json({ error: "Invalid room" }, { status: 400 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.invalidRoomId }, { status: 400 });
   }
   const roomId = roomParams.data.roomId;
 
@@ -43,7 +44,7 @@ export async function POST(
     .single();
 
   if (roomError || !room) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.roomNotFound }, { status: 404 });
   }
   if (!room.password_hash) {
     return NextResponse.redirect(new URL(`/rooms/${roomId}`, request.url), 303);

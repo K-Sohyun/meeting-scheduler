@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ToastPopup } from "@/components/ui/ToastPopup";
+import { UI_MESSAGES } from "@/lib/ui-messages";
 
 type RoomsActionToastProps = {
   createdRoomId?: string;
@@ -12,10 +13,10 @@ export function RoomsActionToast({ createdRoomId, deleted }: RoomsActionToastPro
   const [toastMessage, setToastMessage] = useState("");
   const message = useMemo(() => {
     if (deleted) {
-      return "방이 삭제되었습니다.";
+      return UI_MESSAGES.toast.roomDeleted;
     }
     if (createdRoomId) {
-      return "방이 생성되었습니다.";
+      return UI_MESSAGES.toast.roomCreated;
     }
     return "";
   }, [createdRoomId, deleted]);

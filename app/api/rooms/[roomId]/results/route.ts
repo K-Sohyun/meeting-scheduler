@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isParticipantInRoom } from "@/lib/assert-participant-in-room";
+import { ERROR_MESSAGES } from "@/lib/error-messages";
 import { getParticipantCookieName } from "@/lib/participant-session";
 import { computeRoomResultsBundle } from "@/lib/room-results";
 import type { ScheduleRow } from "@/lib/schedule-results";
@@ -17,20 +18,20 @@ export async function GET(
 ) {
   const roomParams = roomParamsSchema.safeParse(await context.params);
   if (!roomParams.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.invalidRequest }, { status: 400 });
   }
 
   const roomId = roomParams.data.roomId;
   const participantId = request.cookies.get(getParticipantCookieName(roomId))?.value;
   const parsedParticipantId = participantIdSchema.safeParse(participantId);
   if (!parsedParticipantId.success) {
-    return NextResponse.json({ error: "참여 세션이 없습니다." }, { status: 401 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.noParticipantSession }, { status: 401 });
   }
 
   const supabase = createSupabaseServerClient();
   const inRoom = await isParticipantInRoom(supabase, roomId, parsedParticipantId.data);
   if (!inRoom) {
-    return NextResponse.json({ error: "이 방의 참여자가 아닙니다." }, { status: 403 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.notParticipantInRoom }, { status: 403 });
   }
 
   const { data: room } = await supabase
@@ -39,7 +40,7 @@ export async function GET(
     .eq("id", roomId)
     .single();
   if (!room) {
-    return NextResponse.json({ error: "방 정보를 찾을 수 없습니다." }, { status: 404 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.roomNotFound }, { status: 404 });
   }
 
   const { data: participants } = await supabase

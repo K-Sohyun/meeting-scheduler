@@ -7,6 +7,7 @@ import { computeRoomResultsBundle } from "@/lib/room-results";
 import { getRoomUnlockCookieName } from "@/lib/room-unlock";
 import type { ScheduleRow } from "@/lib/schedule-results";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { UI_MESSAGES } from "@/lib/ui-messages";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { JoinForm } from "./JoinForm";
 import { RoomResultsLive } from "./RoomResultsLive";
@@ -144,9 +145,6 @@ export default async function RoomPage({
     .order("created_at", { ascending: true });
 
   const participantIdFromCookie = cookieStore.get(getParticipantCookieName(room.id))?.value;
-  const participantNameById = Object.fromEntries(
-    (participants ?? []).map((participant) => [participant.id, participant.nickname]),
-  );
   const myParticipant = (participants ?? []).find(
     (participant) => participant.id === participantIdFromCookie,
   );
@@ -288,10 +286,10 @@ export default async function RoomPage({
           {managed ? (
             <InlineMessage tone="success" className="mt-2">
               {managed === "closed"
-                ? "모집을 마감했어요."
+                ? UI_MESSAGES.roomPage.manageClosed
                 : managed === "fixed"
-                  ? "일정을 확정했어요."
-                  : "확정 일정을 삭제했어요."}
+                  ? UI_MESSAGES.roomPage.manageFixed
+                  : UI_MESSAGES.roomPage.manageFixCleared}
             </InlineMessage>
           ) : null}
           {canClose ? (
@@ -408,8 +406,8 @@ export default async function RoomPage({
               {joined === "1" ? (
                 <InlineMessage tone="success" className="mt-3">
                   {rejoin === "1"
-                    ? "이미 이 방에 등록된 닉네임이에요."
-                    : "참여가 완료되었습니다. 일정을 등록해주세요."}
+                    ? UI_MESSAGES.roomPage.joinedReconnected
+                    : UI_MESSAGES.roomPage.joinedCompleted}
                 </InlineMessage>
               ) : null}
               <Link
@@ -433,8 +431,8 @@ export default async function RoomPage({
               {joined === "1" ? (
                 <InlineMessage tone="success" className="mt-3">
                   {rejoin === "1"
-                    ? "이미 이 방에 등록된 닉네임이에요."
-                    : "참여가 완료되었습니다. 일정을 등록해주세요."}
+                    ? UI_MESSAGES.roomPage.joinedReconnected
+                    : UI_MESSAGES.roomPage.joinedCompleted}
                 </InlineMessage>
               ) : null}
               <div className="mt-4">
@@ -504,7 +502,11 @@ export default async function RoomPage({
           방 리스트
         </Link>
       </div>
-      <RoomRealtimeListener roomId={room.id} variant={isCalendarView ? "light" : "full"} />
+      <RoomRealtimeListener
+        roomId={room.id}
+        variant={isCalendarView ? "light" : "full"}
+        refreshOnLight={Boolean(isOwner && !room.is_closed)}
+      />
     </main>
   );
 }

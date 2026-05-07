@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { endOfMonth, format } from "date-fns";
 import { z } from "zod";
+import { ERROR_MESSAGES } from "@/lib/error-messages";
 import { getHolidaysInRange } from "@/lib/holidays";
 
 const querySchema = z.object({
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (!parseResult.success) {
     return NextResponse.json(
       {
-        error: "Invalid query. year(2000~2100), month(1~12)이 필요합니다.",
+        error: ERROR_MESSAGES.holidays.invalidQuery,
       },
       { status: 400 },
     );
@@ -31,8 +32,10 @@ export async function GET(request: NextRequest) {
   try {
     const holidays = await getHolidaysInRange(startDate, endDate);
     return NextResponse.json({ holidays });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "공휴일 조회에 실패했습니다.";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: ERROR_MESSAGES.holidays.loadFailed },
+      { status: 500 },
+    );
   }
 }

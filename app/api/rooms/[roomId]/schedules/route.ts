@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isParticipantInRoom } from "@/lib/assert-participant-in-room";
+import { ERROR_MESSAGES } from "@/lib/error-messages";
 import { getParticipantCookieName } from "@/lib/participant-session";
 import { isDateInRoomRange } from "@/lib/schedule-validate";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -25,12 +26,12 @@ export async function GET(
 ) {
   const roomParams = roomParamsSchema.safeParse(await context.params);
   if (!roomParams.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.invalidRequest }, { status: 400 });
   }
   const participantId = request.cookies.get(getParticipantCookieName(roomParams.data.roomId))?.value;
   const parsedParticipantId = participantIdSchema.safeParse(participantId);
   if (!parsedParticipantId.success) {
-    return NextResponse.json({ error: "참여 세션이 없습니다." }, { status: 401 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.noParticipantSession }, { status: 401 });
   }
 
   const supabase = createSupabaseServerClient();
@@ -40,7 +41,7 @@ export async function GET(
     parsedParticipantId.data,
   );
   if (!inRoom) {
-    return NextResponse.json({ error: "이 방의 참여자가 아닙니다." }, { status: 403 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.notParticipantInRoom }, { status: 403 });
   }
 
   const { data, error } = await supabase
@@ -50,7 +51,7 @@ export async function GET(
     .eq("participant_id", parsedParticipantId.data);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: ERROR_MESSAGES.schedules.loadFailed }, { status: 500 });
   }
 
   const entries = (data ?? []) as { date: string; status: "best" | "ok" }[];
@@ -63,12 +64,12 @@ export async function PUT(
 ) {
   const roomParams = roomParamsSchema.safeParse(await context.params);
   if (!roomParams.success) {
-    return NextResponse.json({ error: "Invalid room id." }, { status: 400 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.invalidRoomId }, { status: 400 });
   }
 
   const body = saveSchema.safeParse(await request.json());
   if (!body.success) {
-    return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
+    return NextResponse.json({ error: ERROR_MESSAGES.schedules.invalidPayload }, { status: 400 });
   }
 
   const supabase = createSupabaseServerClient();
@@ -76,12 +77,12 @@ export async function PUT(
   const participantId = request.cookies.get(getParticipantCookieName(roomId))?.value;
   const parsedParticipantId = participantIdSchema.safeParse(participantId);
   if (!parsedParticipantId.success) {
-    return NextResponse.json({ error: "참여 세션이 없습니다." }, { status: 401 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.noParticipantSession }, { status: 401 });
   }
 
   const inRoom = await isParticipantInRoom(supabase, roomId, parsedParticipantId.data);
   if (!inRoom) {
-    return NextResponse.json({ error: "이 방의 참여자가 아닙니다." }, { status: 403 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.notParticipantInRoom }, { status: 403 });
   }
 
   const { data: roomRow, error: roomErr } = await supabase
@@ -91,12 +92,12 @@ export async function PUT(
     .single();
 
   if (roomErr || !roomRow) {
-    return NextResponse.json({ error: "방 정보를 찾을 수 없습니다." }, { status: 400 });
+    return NextResponse.json({ error: ERROR_MESSAGES.common.roomNotFound }, { status: 400 });
   }
 
   if (roomRow.is_closed) {
     return NextResponse.json(
-      { error: "모집이 마감된 방이라 일정을 수정할 수 없어요." },
+      { error: ERROR_MESSAGES.schedules.closedRoomReadonly },
       { status: 403 },
     );
   }
@@ -119,7 +120,7 @@ export async function PUT(
     for (let i = 0; i < sorted.length; i += 1) {
       if (sorted[i]!.status !== "best") {
         return NextResponse.json(
-          { error: "여행 모임 일정은 모두 '선호(best)'만 저장돼요." },
+          { error: ERROR_MESSAGES.schedules.travelBestOnly },
           { status: 400 },
         );
       }
@@ -160,7 +161,7 @@ export async function PUT(
     .eq("participant_id", parsedParticipantId.data);
 
   if (deleteError) {
-    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    return NextResponse.json({ error: ERROR_MESSAGES.schedules.saveFailed }, { status: 500 });
   }
 
   if (entries.length > 0) {
@@ -174,7 +175,7 @@ export async function PUT(
     );
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: ERROR_MESSAGES.schedules.saveFailed }, { status: 500 });
     }
   }
 

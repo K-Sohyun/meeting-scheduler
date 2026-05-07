@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { ERROR_MESSAGES } from "@/lib/error-messages";
 import { normalizeNickname } from "@/lib/nickname";
 import { getRoomCreatorCookieName } from "@/lib/room-creator";
 import { getParticipantCookieName } from "@/lib/participant-session";
@@ -181,7 +182,7 @@ export async function POST(
     setParticipantSessionCookies(response, roomId, participantId, creatorCookieMatches);
     return response;
   } catch {
-    const fallback = "참여 처리 중 오류가 발생했어요.";
+    const fallback = ERROR_MESSAGES.join.failed;
     if (asJson) {
       return NextResponse.json({ ok: false as const, error: fallback }, { status: 500 });
     }

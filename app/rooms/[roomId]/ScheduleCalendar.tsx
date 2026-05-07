@@ -20,6 +20,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { InlineMessage } from "@/components/ui/InlineMessage";
 import { ToastPopup } from "@/components/ui/ToastPopup";
+import { ERROR_MESSAGES } from "@/lib/error-messages";
+import { UI_MESSAGES } from "@/lib/ui-messages";
 
 type Holiday = {
   date: string;
@@ -197,7 +199,7 @@ export function ScheduleCalendar({
 
       if (response.status === 401) {
         setLoadState("unauthorized");
-        showMessage(payload.error ?? "참여 세션이 없습니다. 닉네임으로 다시 참여해 주세요.", "error");
+        showMessage(payload.error ?? UI_MESSAGES.scheduleCalendar.sessionRejoinRequired, "error");
         setSchedules({});
         setSavedSchedules({});
         return;
@@ -205,7 +207,7 @@ export function ScheduleCalendar({
 
       if (!response.ok) {
         setLoadState("error");
-        showMessage(payload.error ?? "일정 데이터를 불러오지 못했습니다.", "error");
+        showMessage(payload.error ?? UI_MESSAGES.scheduleCalendar.loadFailed, "error");
         setSchedules({});
         setSavedSchedules({});
         return;
@@ -243,21 +245,21 @@ export function ScheduleCalendar({
     if (response.status === 401) {
       setLoadState("unauthorized");
       const data = (await response.json().catch(() => ({}))) as { error?: string };
-      showMessage(data.error ?? "참여 세션이 없습니다. 닉네임으로 다시 참여해 주세요.", "error");
+      showMessage(data.error ?? UI_MESSAGES.scheduleCalendar.sessionRejoinRequired, "error");
       return;
     }
     if (!response.ok) {
-      const data = (await response.json().catch(() => ({ error: "저장 실패" }))) as {
+      const data = (await response.json().catch(() => ({ error: ERROR_MESSAGES.schedules.saveFailed }))) as {
         error?: string;
       };
-      showMessage(data.error ?? "일정 저장에 실패했습니다.", "error");
+      showMessage(data.error ?? ERROR_MESSAGES.schedules.saveFailed, "error");
       return;
     }
 
     setSchedules(nextSchedules);
     setSavedSchedules(nextSchedules);
-    showMessage("일정이 저장되었습니다.", "success");
-    setToastMessage("일정이 저장되었습니다.");
+    showMessage(UI_MESSAGES.toast.scheduleSaved, "success");
+    setToastMessage(UI_MESSAGES.toast.scheduleSaved);
     window.dispatchEvent(new CustomEvent("room-results-revalidate", { detail: { roomId: room.id } }));
   }
 
@@ -271,14 +273,14 @@ export function ScheduleCalendar({
       const start = parseISO(date);
       const end = addDays(start, nights);
       if (isAfter(end, roomEnd)) {
-        showMessage(`여행 모임은 ${nights + 1}일 연속 선택이 가능한 시작일만 선택할 수 있어요.`, "error");
+        showMessage(UI_MESSAGES.scheduleCalendar.travelStartDateOnly(nights + 1), "error");
         return;
       }
 
       if (schedules[date] && isTravelChunkStart(schedules, date)) {
         const removed = removeTravelChunkContaining(schedules, date);
         setSchedules(removed);
-        showMessage(`선택한 시작일의 여행 일정 ${nights + 1}일 구간을 해제했어요.`, "info");
+        showMessage(UI_MESSAGES.scheduleCalendar.travelRemoved(nights + 1), "info");
         return;
       }
 
@@ -288,11 +290,11 @@ export function ScheduleCalendar({
       const cleaned = removeTravelChunksOverlappingRange(baseSchedules, date, nights);
       const merged = mergeTravelSelection(cleaned, date, nights);
       if (merged.added === 0) {
-        showMessage("이미 포함된 여행 일정이에요.", "info");
+        showMessage(UI_MESSAGES.scheduleCalendar.travelAlreadyIncluded, "info");
         return;
       }
       setSchedules(merged.next);
-      showMessage(`여행 일정 ${nights + 1}일 구간을 반영했어요. 저장 버튼을 눌러 주세요.`, "info");
+      showMessage(UI_MESSAGES.scheduleCalendar.travelApplied(nights + 1), "info");
       return;
     }
 
@@ -304,7 +306,7 @@ export function ScheduleCalendar({
       next[date] = nextStatus;
     }
     setSchedules(next);
-    showMessage("선택 내용을 확인한 뒤 저장 버튼을 눌러 주세요.", "info");
+    showMessage(UI_MESSAGES.scheduleCalendar.reviewAndSave, "info");
   }
 
   const hasUnsavedChanges = useMemo(
@@ -466,7 +468,7 @@ export function ScheduleCalendar({
           disabled={readOnly || !hasUnsavedChanges || isSaving}
           onClick={() => {
             setSchedules(savedSchedules);
-            showMessage("마지막 저장 상태로 되돌렸습니다.", "neutral");
+            showMessage(UI_MESSAGES.scheduleCalendar.revertedToLastSaved, "neutral");
           }}
           className="h-10 w-full rounded-xl bg-app-primary-soft px-4 text-sm font-medium text-app-primary disabled:opacity-50"
         >
